@@ -12,7 +12,7 @@ interface Props {
   delay?: number;
 }
 
-const circumference = 2 * Math.PI * 44; // radius = 44
+const circumference = 2 * Math.PI * 36; // radius = 36
 
 export default function NutrientDial({ nutrient, confidence, level, color, delay = 0 }: Props) {
   const [displayValue, setDisplayValue] = useState(0);
@@ -37,21 +37,21 @@ export default function NutrientDial({ nutrient, confidence, level, color, delay
       transition={{ ...springDefault, delay }}
     >
       {/* SVG Ring */}
-      <div className="relative w-24 h-24">
-        <svg viewBox="0 0 96 96" className="w-full h-full -rotate-90">
+      <div className="relative w-20 h-20">
+        <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
           {/* Background ring */}
           <circle
-            cx="48" cy="48" r="44"
+            cx="40" cy="40" r="36"
             fill="none"
             stroke="rgba(255,255,255,0.08)"
-            strokeWidth="8"
+            strokeWidth="7"
           />
           {/* Progress ring */}
           <motion.circle
-            cx="48" cy="48" r="44"
+            cx="40" cy="40" r="36"
             fill="none"
             stroke={color}
-            strokeWidth="8"
+            strokeWidth="7"
             strokeLinecap="round"
             strokeDasharray={circumference}
             style={{ strokeDashoffset: dashOffset }}
@@ -60,9 +60,9 @@ export default function NutrientDial({ nutrient, confidence, level, color, delay
 
         {/* Center percentage */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-2xl font-bold text-white tabular-nums">
+          <span className="text-xl font-bold text-white tabular-nums">
             {displayValue}
-            <span className="text-sm font-normal text-white/50">%</span>
+            <span className="text-xs font-normal text-white/50">%</span>
           </span>
         </div>
       </div>

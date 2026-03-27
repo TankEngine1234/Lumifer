@@ -14,7 +14,6 @@ export default function YieldImpactCard({ result, delay = 0 }: Props) {
   const [displayLoss, setDisplayLoss] = useState(0);
   const [displayRecovery, setDisplayRecovery] = useState(0);
 
-  // Find dominant deficiency for recovery estimate
   const dominantNutrient: NutrientType =
     result.nitrogen.confidence >= result.phosphorus.confidence &&
     result.nitrogen.confidence >= result.potassium.confidence
@@ -47,38 +46,37 @@ export default function YieldImpactCard({ result, delay = 0 }: Props) {
   }, [result.yieldImpact, recoverable, delay]);
 
   return (
-    <GlassCard delay={delay}>
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-          <TrendingDown className="w-4 h-4 text-red-400" />
-          Yield Impact Estimate
-        </h4>
-
-        {/* Yield loss */}
-        <div className="flex items-end gap-2">
+    <GlassCard delay={delay} className="!p-3">
+      <div className="flex items-center gap-4">
+        {/* Yield loss — compact */}
+        <div className="flex flex-col items-center shrink-0">
+          <TrendingDown className="w-3 h-3 text-red-400 mb-0.5" />
           <motion.span
-            className="text-4xl font-bold text-red-400 tabular-nums"
+            className="text-2xl font-bold text-red-400 tabular-nums leading-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay }}
           >
             {displayLoss}%
           </motion.span>
-          <span className="text-xs text-white/40 mb-1">estimated yield loss</span>
+          <span className="text-[9px] text-white/35 mt-0.5">yield loss</span>
         </div>
 
-        {/* Recovery bar */}
-        <div>
+        {/* Divider */}
+        <div className="w-px h-12 bg-white/10 shrink-0" />
+
+        {/* Recovery */}
+        <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-white/50 flex items-center gap-1">
+            <span className="text-[10px] text-white/50 flex items-center gap-1">
               <ArrowUpRight className="w-3 h-3 text-green-400" />
-              With treatment: recoverable to
+              With treatment
             </span>
             <span className="text-xs font-bold text-green-400 tabular-nums">
-              {displayRecovery}%
+              {displayRecovery}% recovery
             </span>
           </div>
-          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
             <motion.div
               className="h-full rounded-full bg-gradient-to-r from-green-500 to-green-400"
               initial={{ width: '0%' }}
@@ -86,11 +84,10 @@ export default function YieldImpactCard({ result, delay = 0 }: Props) {
               transition={{ duration: 2, delay: delay + 0.8, ease: 'easeOut' }}
             />
           </div>
+          <p className="text-[9px] text-white/25 mt-1">
+            IPNI field trial data · {dominantNutrient} deficiency
+          </p>
         </div>
-
-        <p className="text-[10px] text-white/30">
-          Based on IPNI field trial data for {dominantNutrient} deficiency in corn
-        </p>
       </div>
     </GlassCard>
   );

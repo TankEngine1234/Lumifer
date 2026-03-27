@@ -36,7 +36,7 @@ export default function SeverityCard({ severity, delay = 0 }: Props) {
   const Icon = config.icon;
 
   return (
-    <GlassCard delay={delay}>
+    <GlassCard delay={delay} className="!p-3">
       <div className="flex items-start gap-3">
         <motion.div
           className="p-2 rounded-lg"

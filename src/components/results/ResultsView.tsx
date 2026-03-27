@@ -12,7 +12,6 @@ interface Props {
 }
 
 export default function ResultsView({ result }: Props) {
-  // Determine which nutrients are deficient for action plans
   const deficiencies = (
     ['nitrogen', 'phosphorus', 'potassium'] as const
   )
@@ -25,21 +24,24 @@ export default function ResultsView({ result }: Props) {
       : [{ nutrient: 'nitrogen', severity: result.severity }]
   );
 
+  // Show at most 2 action plans so everything fits
+  const visiblePlans = actionPlans.slice(0, 2);
+
   return (
     <motion.div
-      className="h-full w-full overflow-y-auto pb-24 pt-14 px-4"
+      className="absolute inset-0 flex flex-col px-4 pt-12 pb-24"
       variants={staggerContainer}
       initial="hidden"
       animate="visible"
     >
       {/* Header */}
-      <motion.div variants={staggerItem} className="text-center mb-6">
+      <motion.div variants={staggerItem} className="text-center mb-4 shrink-0">
         <h2 className="text-lg font-semibold text-white">Analysis Complete</h2>
-        <p className="text-xs text-white/40 mt-1">Zone A3 — Leaf tissue spectral analysis</p>
+        <p className="text-xs text-white/40 mt-0.5">Zone A3 · Leaf tissue spectral analysis</p>
       </motion.div>
 
       {/* Nutrient dials row */}
-      <motion.div variants={staggerItem} className="flex justify-center gap-6 mb-6">
+      <motion.div variants={staggerItem} className="flex justify-center gap-4 mb-4 shrink-0">
         <NutrientDial
           nutrient="nitrogen"
           confidence={result.nitrogen.confidence}
@@ -64,25 +66,25 @@ export default function ResultsView({ result }: Props) {
       </motion.div>
 
       {/* Severity card */}
-      <motion.div variants={staggerItem} className="mb-4">
+      <motion.div variants={staggerItem} className="mb-3 shrink-0">
         <SeverityCard severity={result.severity} delay={1.4} />
       </motion.div>
 
       {/* Action plan cards */}
-      <motion.div variants={staggerItem} className="mb-4">
-        <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-3 px-1">
+      <motion.div variants={staggerItem} className="mb-3 shrink-0">
+        <h3 className="text-[10px] font-bold text-white/50 uppercase tracking-[0.15em] mb-2 px-0.5">
           Recommended Actions
         </h3>
-        <div className="space-y-3">
-          {actionPlans.map((plan, i) => (
-            <ActionPlanCard key={plan.id} plan={plan} delay={1.8 + i * 0.3} />
+        <div className="space-y-2">
+          {visiblePlans.map((plan, i) => (
+            <ActionPlanCard key={plan.id} plan={plan} delay={1.8 + i * 0.25} />
           ))}
         </div>
       </motion.div>
 
       {/* Yield impact card */}
-      <motion.div variants={staggerItem}>
-        <YieldImpactCard result={result} delay={2.5} />
+      <motion.div variants={staggerItem} className="shrink-0">
+        <YieldImpactCard result={result} delay={2.4} />
       </motion.div>
     </motion.div>
   );

@@ -159,7 +159,7 @@ def train():
 
     # Save model
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    model.save(OUTPUT_DIR)
+    model.export(OUTPUT_DIR)
     print(f"\nModel saved to {OUTPUT_DIR}")
 
     # Print class-level performance

@@ -25,7 +25,7 @@ export default function ActionPlanCard({ plan, delay = 0 }: Props) {
   const color = nutrientColors[plan.nutrient] || '#22C55E';
 
   return (
-    <GlassCard delay={delay}>
+    <GlassCard delay={delay} className="!p-3">
       <div className="flex items-start gap-3">
         <motion.div
           className="p-2 rounded-lg shrink-0"

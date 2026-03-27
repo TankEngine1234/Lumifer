@@ -1,0 +1,28 @@
+{
+  "source": "PlantVillage (Kaggle: abdallahalidev/plantvillage-dataset)",
+  "mapping": {
+    "Corn_(maize)___Northern_Leaf_Blight": "nitrogen_deficient",
+    "Corn_(maize)___Common_rust_": "nitrogen_deficient",
+    "Tomato___Leaf_Mold": "nitrogen_deficient",
+    "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)": "nitrogen_deficient",
+    "Grape___Black_rot": "phosphorus_deficient",
+    "Tomato___Septoria_leaf_spot": "phosphorus_deficient",
+    "Potato___Early_blight": "phosphorus_deficient",
+    "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": "potassium_deficient",
+    "Tomato___Early_blight": "potassium_deficient",
+    "Potato___Late_blight": "potassium_deficient",
+    "Tomato___Bacterial_spot": "potassium_deficient",
+    "Corn_(maize)___healthy": "healthy",
+    "Tomato___healthy": "healthy",
+    "Potato___healthy": "healthy",
+    "Grape___healthy": "healthy",
+    "Soybean___healthy": "healthy"
+  },
+  "class_counts": {
+    "nitrogen_deficient": 500,
+    "phosphorus_deficient": 500,
+    "potassium_deficient": 500,
+    "healthy": 500
+  },
+  "samples_per_class_target": 500
+}
