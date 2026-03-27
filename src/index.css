@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  /* Background gradient palette */
+  --color-bg-dark: #0A0A0A;
+  --color-bg-deep-green: #0D2818;
+  --color-bg-forest: #1A472A;
+
+  /* Nutrient colors */
+  --color-nitrogen: #EAB308;
+  --color-phosphorus: #A855F7;
+  --color-potassium: #F59E0B;
+
+  /* NDVI zone colors */
+  --color-ndvi-healthy: #22C55E;
+  --color-ndvi-stress: #EAB308;
+  --color-ndvi-severe: #EF4444;
+
+  /* Severity colors */
+  --color-severity-low: #22C55E;
+  --color-severity-moderate: #EAB308;
+  --color-severity-severe: #EF4444;
+
+  /* Glass card */
+  --color-glass-bg: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+
+  /* Heatmap ramp */
+  --color-heatmap-blue: #1E3A8A;
+  --color-heatmap-cyan: #06B6D4;
+  --color-heatmap-green: #22C55E;
+  --color-heatmap-yellow: #EAB308;
+  --color-heatmap-red: #EF4444;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--color-bg-dark);
+  color: white;
+}
+
+/* Utility for frosted glass cards */
+.glass {
+  background: var(--color-glass-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--color-glass-border);
+  border-radius: 1rem;
+}
