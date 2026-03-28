@@ -1,18 +1,6 @@
 """
 Train MobileNetV2 for NPK deficiency classification.
-
-Uses transfer learning on PlantVillage-derived dataset:
-  - Base: MobileNetV2 (ImageNet weights, frozen)
-  - Top: GlobalAveragePooling → Dense(128) → Dropout(0.3) → Dense(3, sigmoid)
-  - Output: [N_confidence, P_confidence, K_confidence] (multi-label)
-
-Usage:
-  pip install tensorflow pillow numpy
-  python scripts/prepare_dataset.py  # First, prepare the dataset
-  python scripts/train_model.py
-
-Output:
-  models/npk-mobilenet-keras/  (SavedModel format)
+Refactored for optimal Transfer Learning and TFJS export.
 """
 
 import os
@@ -23,6 +11,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input 
 
 # Config
 IMG_SIZE = 224
@@ -40,9 +29,8 @@ CLASS_TO_LABELS = {
     'healthy':              [0.0, 0.0, 0.0],
 }
 
-
 def load_dataset():
-    """Load images and create multi-label arrays."""
+    """Load images and apply strict MobileNetV2 preprocessing."""
     images = []
     labels = []
 
@@ -55,18 +43,31 @@ def load_dataset():
         count = 0
         for img_path in sorted(class_dir.glob('*.jpg')):
             img = keras.utils.load_img(img_path, target_size=(IMG_SIZE, IMG_SIZE))
-            img_array = keras.utils.img_to_array(img) / 255.0
+            img_array = keras.utils.img_to_array(img)
+            
+            # 🚨 FIX 1: Use official MobileNetV2 preprocessing (scales to [-1, 1] instead of [0, 1])
+            img_array = preprocess_input(img_array)
+            
             images.append(img_array)
             labels.append(label_vec)
             count += 1
 
         print(f"Loaded {count} images for {class_name}")
 
-    return np.array(images), np.array(labels)
-
+    # 🚨 FIX 2: Force float32 to prevent RAM from doubling in size
+    return np.array(images, dtype=np.float32), np.array(labels, dtype=np.float32)
 
 def create_model():
     """Create MobileNetV2 transfer learning model."""
+    
+    # 🚨 FIX 3: Bake augmentation directly into the model so it exports cleanly
+    data_augmentation = keras.Sequential([
+        layers.RandomFlip('horizontal_and_vertical'),
+        layers.RandomRotation(0.2),
+        layers.RandomZoom(0.15),
+        layers.RandomContrast(0.1),
+    ], name="augmentation_layer")
+
     # Load MobileNetV2 base (frozen)
     base_model = keras.applications.MobileNetV2(
         input_shape=(IMG_SIZE, IMG_SIZE, 3),
@@ -76,22 +77,23 @@ def create_model():
     base_model.trainable = False
 
     # Build classification head
-    model = keras.Sequential([
-        base_model,
-        layers.GlobalAveragePooling2D(),
-        layers.Dense(128, activation='relu'),
-        layers.Dropout(0.3),
-        layers.Dense(3, activation='sigmoid'),  # Multi-label: [N, P, K]
-    ])
+    inputs = keras.Input(shape=(IMG_SIZE, IMG_SIZE, 3))
+    x = data_augmentation(inputs) # Augmentation only active during training automatically
+    x = base_model(x, training=False) # Ensure BatchNorm layers stay frozen
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dropout(0.4)(x)
+    outputs = layers.Dense(3, activation='sigmoid')(x)  # Multi-label: [N, P, K]
+
+    model = keras.Model(inputs, outputs)
 
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=LEARNING_RATE),
         loss='binary_crossentropy',
-        metrics=['binary_accuracy'],
+        metrics=['binary_accuracy', keras.metrics.AUC(multi_label=True)],
     )
 
     return model
-
 
 def train():
     """Main training pipeline."""
@@ -114,64 +116,14 @@ def train():
 
     print(f"Train: {len(X_train)}, Validation: {len(X_val)}")
 
-    # Data augmentation
-    augmentation = keras.Sequential([
-        layers.RandomFlip('horizontal'),
-        layers.RandomRotation(0.15),
-        layers.RandomZoom(0.1),
-        layers.RandomBrightness(0.1),
-        layers.RandomContrast(0.1),
-    ])
+    # Standard tf.data pipelines (Augmentation is now inside the model)
+    train_ds = tf.data.Dataset.from_tensor_slices((X_train, y_train))\
+        .shuffle(1000)\
+        .batch(BATCH_SIZE)\
+        .prefetch(tf.data.AUTOTUNE)
 
-    # Create augmented training dataset
-    train_ds = tf.data.Dataset.from_tensor_slices((X_train, y_train))
-    train_ds = train_ds.shuffle(1000).batch(BATCH_SIZE)
-    train_ds = train_ds.map(
-        lambda x, y: (augmentation(x, training=True), y),
-        num_parallel_calls=tf.data.AUTOTUNE,
-    )
-    train_ds = train_ds.prefetch(tf.data.AUTOTUNE)
+    val_ds = tf.data.Dataset.from_tensor_slices((X_val, y_val))\
+        .batch(BATCH_SIZE)\
+        .prefetch(tf.data.AUTOTUNE)
 
-    val_ds = tf.data.Dataset.from_tensor_slices((X_val, y_val)).batch(BATCH_SIZE)
-
-    # Create and train model
     print("\nCreating model...")
-    model = create_model()
-    model.summary()
-
-    print("\nTraining...")
-    callbacks = [
-        keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True),
-        keras.callbacks.ReduceLROnPlateau(factor=0.5, patience=3),
-    ]
-
-    history = model.fit(
-        train_ds,
-        validation_data=val_ds,
-        epochs=EPOCHS,
-        callbacks=callbacks,
-    )
-
-    # Evaluate
-    val_loss, val_acc = model.evaluate(val_ds)
-    print(f"\nValidation loss: {val_loss:.4f}")
-    print(f"Validation accuracy: {val_acc:.4f}")
-
-    # Save model
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    model.export(OUTPUT_DIR)
-    print(f"\nModel saved to {OUTPUT_DIR}")
-
-    # Print class-level performance
-    y_pred = model.predict(X_val)
-    for i, name in enumerate(['Nitrogen', 'Phosphorus', 'Potassium']):
-        pred_binary = (y_pred[:, i] > 0.5).astype(int)
-        true_binary = y_val[:, i].astype(int)
-        acc = np.mean(pred_binary == true_binary)
-        print(f"  {name}: {acc:.2%} accuracy")
-
-    print(f"\nNext step: python scripts/export_tfjs.sh")
-
-
-if __name__ == '__main__':
-    train()
