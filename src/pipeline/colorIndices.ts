@@ -3,7 +3,7 @@ import { rgbToHsv } from '../utils/colorMath';
 
 // Compute vegetation indices and color statistics from leaf pixel data
 // Indices are based on published formulas:
-//   ExG:   Woebbecke et al. (1995) - 2G - R - B
+//   ExG:   Woebbecke et al. (1995) - 2g - r - b (Using Chromatic Coordinates)
 //   NGRDI: Tucker (1979) - (G-R)/(G+R)
 //   VARI:  Gitelson et al. (2002) - (G-R)/(G+R-B)
 
@@ -18,31 +18,43 @@ export function computeColorIndices(imageData: ImageData, mask?: ImageData): { i
   for (let i = 0; i < width * height; i++) {
     const idx = i * 4;
 
-    // Skip pixels outside the mask
+    // Skip pixels outside the mask (Alpha channel = 0)
     if (maskData && maskData[idx + 3] === 0) continue;
 
-    const r = data[idx] / 255;
-    const g = data[idx + 1] / 255;
-    const b = data[idx + 2] / 255;
+    const R = data[idx];
+    const G = data[idx + 1];
+    const B = data[idx + 2];
 
-    totalR += r;
-    totalG += g;
-    totalB += b;
+    // Scale to [0, 1] for average color and Tucker/Gitelson math
+    const r_scaled = R / 255;
+    const g_scaled = G / 255;
+    const b_scaled = B / 255;
 
-    // Excess Green Index: 2G - R - B
-    totalExg += 2 * g - r - b;
+    totalR += r_scaled;
+    totalG += g_scaled;
+    totalB += b_scaled;
+
+    // 🚨 FIX: Woebbecke's ExG REQUIRES Normalized Chromatic Coordinates
+    const rgbSum = R + G + B;
+    if (rgbSum > 0) {
+      const r_chroma = R / rgbSum;
+      const g_chroma = G / rgbSum;
+      const b_chroma = B / rgbSum;
+      totalExg += (2 * g_chroma) - r_chroma - b_chroma;
+    }
 
     // Normalized Green-Red Difference Index: (G - R) / (G + R)
-    const grSum = g + r;
-    totalNgrdi += grSum > 0 ? (g - r) / grSum : 0;
+    const grSum = g_scaled + r_scaled;
+    totalNgrdi += grSum > 0 ? (g_scaled - r_scaled) / grSum : 0;
 
     // Visible Atmospherically Resistant Index: (G - R) / (G + R - B)
-    const grbDenom = g + r - b;
-    totalVari += Math.abs(grbDenom) > 0.001 ? (g - r) / grbDenom : 0;
+    const grbDenom = g_scaled + r_scaled - b_scaled;
+    totalVari += Math.abs(grbDenom) > 0.001 ? (g_scaled - r_scaled) / grbDenom : 0;
 
     pixelCount++;
   }
 
+  // Prevent NaN if no leaf is detected in the mask
   if (pixelCount === 0) {
     return {
       indices: { exg: 0, ngrdi: 0, vari: 0 },
@@ -56,6 +68,8 @@ export function computeColorIndices(imageData: ImageData, mask?: ImageData): { i
   const meanR = totalR / pixelCount;
   const meanG = totalG / pixelCount;
   const meanB = totalB / pixelCount;
+  
+  // Convert mean back to [0, 255] for standard HSV conversion
   const meanHSV = rgbToHsv(meanR * 255, meanG * 255, meanB * 255);
 
   return {
@@ -65,7 +79,11 @@ export function computeColorIndices(imageData: ImageData, mask?: ImageData): { i
       vari: totalVari / pixelCount,
     },
     colorData: {
-      meanRGB: { r: Math.round(meanR * 255), g: Math.round(meanG * 255), b: Math.round(meanB * 255) },
+      meanRGB: { 
+        r: Math.round(meanR * 255), 
+        g: Math.round(meanG * 255), 
+        b: Math.round(meanB * 255) 
+      },
       meanHSV: meanHSV,
     },
   };
