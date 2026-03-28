@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function CameraView({ isLocked, onCapture, onLock }: Props) {
-  const { videoRef, isReady, error, captureFrame } = useCamera();
+  const { videoRef, isReady, error, retry, captureFrame } = useCamera();
   const [flash, setFlash] = useState(false);
 
   const handleCapture = useCallback(() => {
@@ -87,9 +87,15 @@ export default function CameraView({ isLocked, onCapture, onLock }: Props) {
       {/* Camera error state */}
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-40">
-          <div className="text-center p-6">
-            <p className="text-red-400 text-sm mb-2">Camera unavailable</p>
-            <p className="text-white/40 text-xs">{error}</p>
+          <div className="text-center p-6 flex flex-col items-center gap-4">
+            <p className="text-red-400 text-sm">Camera unavailable</p>
+            <p className="text-white/40 text-xs max-w-[220px] leading-relaxed">{error}</p>
+            <button
+              className="px-5 py-2 glass text-sm font-medium text-white/80 active:scale-95 transition-transform"
+              onClick={retry}
+            >
+              Try again
+            </button>
           </div>
         </div>
       )}

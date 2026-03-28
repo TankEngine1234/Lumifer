@@ -6,8 +6,12 @@ interface Props {
 }
 
 export default function Badge({ phase }: Props) {
-  const isProminent = phase === 'results' || phase === 'context';
-  const isNASA = phase === 'context';
+  // Hide on context — that screen has its own NASA attribution badge and a Restart button
+  // at the bottom; stacking the badge on top creates an overlap
+  if (phase === 'context') return null;
+
+  const isProminent = phase === 'results';
+  const isNASA = false;
 
   return (
     <motion.div

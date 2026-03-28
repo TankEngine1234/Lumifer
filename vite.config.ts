@@ -28,6 +28,18 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('mapbox-gl')) return 'mapbox';
+          if (id.includes('@tensorflow')) return 'tfjs';
+          if (id.includes('framer-motion')) return 'motion';
+          if (id.includes('three')) return 'three';
+        },
+      },
+    },
+  },
   define: {
     global: 'globalThis',
   },

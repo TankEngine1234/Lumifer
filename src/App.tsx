@@ -21,7 +21,7 @@ function App() {
   const [npkResult, setNpkResult] = useState<NPKResult | null>(null);
 
   // 🛡️ FIX: Reference to clear rogue timeouts during manual overrides
-  const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Check for demo mode via query param
   const isDemo = new URLSearchParams(window.location.search).has('demo');

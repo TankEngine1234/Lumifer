@@ -4,6 +4,7 @@ interface UseCameraResult {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   isReady: boolean;
   error: string | null;
+  retry: () => void;
   captureFrame: () => string | null; // Returns data URL
 }
 
@@ -12,6 +13,13 @@ export function useCamera(): UseCameraResult {
   const streamRef = useRef<MediaStream | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const retry = useCallback(() => {
+    setError(null);
+    setIsReady(false);
+    setRetryCount(c => c + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,7 +60,7 @@ export function useCamera(): UseCameraResult {
       cancelled = true;
       streamRef.current?.getTracks().forEach(t => t.stop());
     };
-  }, []);
+  }, [retryCount]);
 
   const captureFrame = useCallback((): string | null => {
     const video = videoRef.current;
@@ -69,5 +77,5 @@ export function useCamera(): UseCameraResult {
     return canvas.toDataURL('image/jpeg', 0.92);
   }, [isReady]);
 
-  return { videoRef, isReady, error, captureFrame };
+  return { videoRef, isReady, error, retry, captureFrame };
 }

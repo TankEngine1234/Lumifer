@@ -30,7 +30,6 @@ function StressPill({ label, type }: { label: string; type: keyof typeof pillCol
   );
 }
 
-// NASA meatball logo as inline SVG (simplified)
 function NASALogo() {
   return (
     <svg width="20" height="20" viewBox="0 0 100 100" className="shrink-0">
@@ -48,13 +47,13 @@ export default function NASAContextView({ npkResult, climate, onComplete }: Prop
 
   return (
     <motion.div
-      className="absolute inset-0 flex flex-col px-4 pt-12 pb-24"
+      className="absolute inset-0 flex flex-col"
       variants={staggerContainer}
       initial="hidden"
       animate="visible"
     >
-      {/* Header */}
-      <motion.div variants={staggerItem} className="text-center mb-4 shrink-0">
+      {/* ── Fixed header ── */}
+      <motion.div variants={staggerItem} className="text-center pt-12 pb-3 shrink-0 px-4">
         <p className="text-[9px] font-bold tracking-[0.15em] text-white/35 uppercase mb-0.5">
           Stage 3 · Why is it stressed?
         </p>
@@ -62,9 +61,9 @@ export default function NASAContextView({ npkResult, climate, onComplete }: Prop
         <p className="text-xs text-white/40 mt-0.5">NASA POWER · 90-day growing season analysis</p>
       </motion.div>
 
-      {/* Loading */}
+      {/* ── Loading ── */}
       {isLoading && (
-        <motion.div variants={staggerItem} className="flex-1 flex items-center justify-center">
+        <motion.div variants={staggerItem} className="flex-1 flex items-center justify-center px-4">
           <GlassCard>
             <div className="flex items-center gap-3 px-2 py-1">
               <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
@@ -77,9 +76,9 @@ export default function NASAContextView({ npkResult, climate, onComplete }: Prop
         </motion.div>
       )}
 
-      {/* Error / Offline */}
+      {/* ── Error / Offline ── */}
       {isError && (
-        <motion.div variants={staggerItem} className="flex-1 flex items-center justify-center">
+        <motion.div variants={staggerItem} className="flex-1 flex items-center justify-center px-4">
           <GlassCard>
             <div className="flex items-start gap-3 px-1">
               {climate.status === 'offline'
@@ -101,44 +100,46 @@ export default function NASAContextView({ npkResult, climate, onComplete }: Prop
         </motion.div>
       )}
 
-      {/* Success */}
+      {/* ── Success: scrollable content ── */}
       {isSuccess && (
-        <>
-          {/* Climate chart */}
-          <motion.div variants={staggerItem} className="mb-3 shrink-0">
+        <motion.div
+          variants={staggerItem}
+          className="flex-1 overflow-y-auto px-4 pb-24"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          {/* Climate chart — dominant element */}
+          <div className="mb-3">
             <ClimateChart climate={climate} />
-          </motion.div>
+          </div>
 
           {/* Stress summary pills */}
-          <motion.div variants={staggerItem} className="flex flex-wrap gap-2 mb-3 shrink-0">
+          <div className="flex flex-wrap gap-2 mb-3">
             <StressPill label={`${climate.heatDays}d heat >34°C`} type="heat" />
             <StressPill label={`${climate.droughtGap}d dry streak`} type="drought" />
             <StressPill label={`${climate.lowHumidityDays}d low RH`} type="humidity" />
-          </motion.div>
+          </div>
 
           {/* Narrative card */}
-          <motion.div variants={staggerItem} className="mb-3 shrink-0">
+          <div className="mb-3">
             <StressNarrativeCard npkResult={npkResult} climate={climate} delay={0.3} />
-          </motion.div>
+          </div>
 
           {/* NASA attribution */}
-          <motion.div variants={staggerItem} className="shrink-0">
-            <div className="glass px-3 py-2 flex items-center gap-2.5">
-              <NASALogo />
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold text-white/70">NASA POWER · data.nasa.gov</p>
-                <p className="text-[9px] text-white/35 truncate">
-                  Agroclimatology Community · 30.57°N 96.30°W · 90-day daily
-                </p>
-              </div>
+          <div className="glass px-3 py-2 flex items-center gap-2.5">
+            <NASALogo />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-white/70">NASA POWER · data.nasa.gov</p>
+              <p className="text-[9px] text-white/35 truncate">
+                Agroclimatology Community · 30.57°N 96.30°W · 90-day daily
+              </p>
             </div>
-          </motion.div>
-        </>
+          </div>
+        </motion.div>
       )}
 
-      {/* Restart button */}
+      {/* ── Restart button — fixed at bottom, above content ── */}
       <motion.button
-        className="absolute bottom-8 left-4 right-4 py-3 rounded-2xl text-white/60 text-sm font-medium glass"
+        className="absolute bottom-6 left-4 right-4 py-3 rounded-2xl text-white/60 text-sm font-medium glass z-10"
         style={{ border: '1px solid rgba(255,255,255,0.08)' }}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

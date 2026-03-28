@@ -1,94 +1,87 @@
-import type { VegetationIndices, ColorData } from '../types';
-import { rgbToHsv } from '../utils/colorMath';
+// Spectral heatmap renderer
+// Maps per-pixel vegetation index (NGRDI-like) to a false-color ramp:
+//   <0.0  → red    (#EF4444) — severely deficient
+//   0.0–0.2 → yellow (#EAB308)
+//   0.2–0.4 → green  (#22C55E)
+//   0.4–0.6 → cyan   (#06B6D4)
+//   0.6+   → blue   (#1E3A8A) — healthy
+//
+// Only leaf pixels (inside the mask) are colorized. Background stays black.
+// Returns a data URL string suitable for use as an <img> src.
 
-// Compute vegetation indices and color statistics from leaf pixel data
-// Indices are based on published formulas:
-//   ExG:   Woebbecke et al. (1995) - 2g - r - b (Using Chromatic Coordinates)
-//   NGRDI: Tucker (1979) - (G-R)/(G+R)
-//   VARI:  Gitelson et al. (2002) - (G-R)/(G+R-B)
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * Math.max(0, Math.min(1, t));
+}
 
-export function computeColorIndices(imageData: ImageData, mask?: ImageData): { indices: VegetationIndices; colorData: ColorData } {
-  const { data, width, height } = imageData;
-  const maskData = mask?.data;
+type RGB = [number, number, number];
 
-  let totalR = 0, totalG = 0, totalB = 0;
-  let totalExg = 0, totalNgrdi = 0, totalVari = 0;
-  let pixelCount = 0;
+const RAMP: { threshold: number; color: RGB }[] = [
+  { threshold: -1.0, color: [239, 68,  68]  },  // red
+  { threshold:  0.0, color: [234, 179,  8]  },  // yellow
+  { threshold:  0.2, color: [ 34, 197, 94]  },  // green
+  { threshold:  0.4, color: [  6, 182, 212] },  // cyan
+  { threshold:  0.6, color: [ 30,  58, 138] },  // blue
+];
+
+function indexToColor(ndvi: number): RGB {
+  // Find bracket in ramp
+  for (let i = 1; i < RAMP.length; i++) {
+    if (ndvi <= RAMP[i].threshold) {
+      const lo = RAMP[i - 1];
+      const hi = RAMP[i];
+      const t = (ndvi - lo.threshold) / (hi.threshold - lo.threshold);
+      return [
+        Math.round(lerp(lo.color[0], hi.color[0], t)),
+        Math.round(lerp(lo.color[1], hi.color[1], t)),
+        Math.round(lerp(lo.color[2], hi.color[2], t)),
+      ];
+    }
+  }
+  return RAMP[RAMP.length - 1].color;
+}
+
+export function renderHeatmapToCanvas(
+  originalImageData: ImageData,
+  leafMask: ImageData | null,
+): string {
+  const { width, height, data } = originalImageData;
+  const maskData = leafMask?.data ?? null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+
+  const output = ctx.createImageData(width, height);
+  const outData = output.data;
 
   for (let i = 0; i < width * height; i++) {
     const idx = i * 4;
 
-    // 🚨 FIX: Handle both Transparent AND Solid Black OpenCV backgrounds
-    if (maskData) {
-      if (maskData[idx + 3] === 0 || maskData[idx] === 0) {
-        continue;
-      }
+    // If outside the leaf mask, keep pixel dark/transparent
+    const inMask = !maskData || (maskData[idx + 3] > 0 && maskData[idx] > 0);
+
+    if (!inMask) {
+      outData[idx]     = 0;
+      outData[idx + 1] = 0;
+      outData[idx + 2] = 0;
+      outData[idx + 3] = 180; // semi-transparent black for background
+      continue;
     }
 
     const R = data[idx];
     const G = data[idx + 1];
-    const B = data[idx + 2];
 
-    // Scale to [0, 1] for average color and Tucker/Gitelson math
-    const r_scaled = R / 255;
-    const g_scaled = G / 255;
-    const b_scaled = B / 255;
+    // Per-pixel NGRDI: (G - R) / (G + R + 1)  — +1 avoids divide-by-zero
+    const ndvi = (G - R) / (G + R + 1);
+    const [r, g, b] = indexToColor(ndvi);
 
-    totalR += r_scaled;
-    totalG += g_scaled;
-    totalB += b_scaled;
-
-    // Woebbecke's ExG REQUIRES Normalized Chromatic Coordinates
-    const rgbSum = R + G + B;
-    if (rgbSum > 0) {
-      const r_chroma = R / rgbSum;
-      const g_chroma = G / rgbSum;
-      const b_chroma = B / rgbSum;
-      totalExg += (2 * g_chroma) - r_chroma - b_chroma;
-    }
-
-    // Normalized Green-Red Difference Index: (G - R) / (G + R)
-    const grSum = g_scaled + r_scaled;
-    totalNgrdi += grSum > 0 ? (g_scaled - r_scaled) / grSum : 0;
-
-    // Visible Atmospherically Resistant Index: (G - R) / (G + R - B)
-    const grbDenom = g_scaled + r_scaled - b_scaled;
-    totalVari += Math.abs(grbDenom) > 0.001 ? (g_scaled - r_scaled) / grbDenom : 0;
-
-    pixelCount++;
+    outData[idx]     = r;
+    outData[idx + 1] = g;
+    outData[idx + 2] = b;
+    outData[idx + 3] = 230; // slight transparency to let original bleed through
   }
 
-  // Prevent NaN if no leaf is detected in the mask
-  if (pixelCount === 0) {
-    return {
-      indices: { exg: 0, ngrdi: 0, vari: 0 },
-      colorData: {
-        meanRGB: { r: 0, g: 0, b: 0 },
-        meanHSV: { h: 0, s: 0, v: 0 },
-      },
-    };
-  }
-
-  const meanR = totalR / pixelCount;
-  const meanG = totalG / pixelCount;
-  const meanB = totalB / pixelCount;
-  
-  // Convert mean back to [0, 255] for standard HSV conversion
-  const meanHSV = rgbToHsv(meanR * 255, meanG * 255, meanB * 255);
-
-  return {
-    indices: {
-      exg: totalExg / pixelCount,
-      ngrdi: totalNgrdi / pixelCount,
-      vari: totalVari / pixelCount,
-    },
-    colorData: {
-      meanRGB: { 
-        r: Math.round(meanR * 255), 
-        g: Math.round(meanG * 255), 
-        b: Math.round(meanB * 255) 
-      },
-      meanHSV: meanHSV,
-    },
-  };
+  ctx.putImageData(output, 0, 0);
+  return canvas.toDataURL('image/png');
 }
