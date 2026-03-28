@@ -14,15 +14,15 @@ interface Props {
 }
 
 const pillColors = {
-  heat:     { bg: 'rgba(239,68,68,0.15)',    border: 'rgba(239,68,68,0.35)',    text: '#fca5a5' },
-  drought:  { bg: 'rgba(234,179,8,0.15)',    border: 'rgba(234,179,8,0.35)',    text: '#fde68a' },
-  humidity: { bg: 'rgba(168,85,247,0.15)',   border: 'rgba(168,85,247,0.35)',   text: '#d8b4fe' },
+  heat:     { bg: 'rgba(248,113,113,0.15)',  border: 'rgba(248,113,113,0.45)',  text: '#fca5a5' },
+  drought:  { bg: 'rgba(251,146,60,0.15)',   border: 'rgba(251,146,60,0.45)',   text: '#fdba74' },
+  humidity: { bg: 'rgba(96,165,250,0.15)',   border: 'rgba(96,165,250,0.45)',   text: '#93c5fd' },
 };
 
 function StressPill({ label, type }: { label: string; type: keyof typeof pillColors }) {
   const c = pillColors[type];
   return (
-    <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full" style={{
+    <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{
       backgroundColor: c.bg, border: `1px solid ${c.border}`, color: c.text,
     }}>
       {label}

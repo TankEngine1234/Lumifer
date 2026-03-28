@@ -68,23 +68,24 @@ export default function YieldImpactCard({ result, delay = 0 }: Props) {
         {/* Recovery */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-white/50 flex items-center gap-1">
-              <ArrowUpRight className="w-3 h-3 text-green-400" />
+            <span className="text-[10px] text-white/60 flex items-center gap-1">
+              <ArrowUpRight className="w-3 h-3 text-[#4ade80]" />
               With treatment
             </span>
-            <span className="text-xs font-bold text-green-400 tabular-nums">
+            <span className="text-xs font-bold text-[#4ade80] tabular-nums">
               {displayRecovery}% recovery
             </span>
           </div>
           <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
             <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-green-500 to-green-400"
+              className="h-full rounded-full"
+              style={{ background: 'linear-gradient(to right, #16a34a, #4ade80)' }}
               initial={{ width: '0%' }}
               animate={{ width: `${recoverable}%` }}
               transition={{ duration: 2, delay: delay + 0.8, ease: 'easeOut' }}
             />
           </div>
-          <p className="text-[9px] text-white/25 mt-1">
+          <p className="text-[9px] text-white/35 mt-1">
             IPNI field trial data · {dominantNutrient} deficiency
           </p>
         </div>

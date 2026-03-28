@@ -173,7 +173,7 @@ export default function LineGraphStatistics({
     <div
       className={`relative overflow-hidden ${className}`}
       style={{
-        background: 'linear-gradient(160deg, #0f172a 0%, #0d1f14 60%, #0a1a0f 100%)',
+        background: 'linear-gradient(160deg, #161616 0%, #111111 60%, #0e0e0e 100%)',
         border: '1px solid rgba(255,255,255,0.07)',
         borderRadius: '16px',
       }}

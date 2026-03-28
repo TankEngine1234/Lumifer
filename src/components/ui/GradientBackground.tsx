@@ -24,14 +24,17 @@ const glowPositions: Record<DemoPhase, string> = {
 export default function GradientBackground({ phase, children }: Props) {
   return (
     <div className="fixed inset-0 overflow-hidden">
-      {/* Base gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-[#0D2818] to-[#1A472A]" />
+      {/* True dark base — no color tint */}
+      <div className="absolute inset-0 bg-[#0a0a0a]" />
 
-      {/* Animated radial glow */}
+      {/* Subtle vignette depth */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/30" />
+
+      {/* Very faint phase-aware glow — near-white, architectural not thematic */}
       <motion.div
         className="absolute inset-0"
         animate={{
-          background: `radial-gradient(ellipse 60% 50% at ${glowPositions[phase]}, rgba(34, 197, 94, 0.08) 0%, transparent 70%)`,
+          background: `radial-gradient(ellipse 55% 40% at ${glowPositions[phase]}, rgba(255,255,255,0.025) 0%, transparent 65%)`,
         }}
         transition={{ duration: 1.5, ease: 'easeInOut' }}
       />

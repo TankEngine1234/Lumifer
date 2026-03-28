@@ -17,7 +17,7 @@ const nutrientLabel: Record<NutrientType, string> = {
 };
 
 const stressIcon = { heat: Zap, drought: CloudRain, humidity: Wind };
-const stressColor = { heat: '#ef4444', drought: '#eab308', humidity: '#a855f7' };
+const stressColor = { heat: '#f87171', drought: '#fb923c', humidity: '#60a5fa' };
 
 export default function StressNarrativeCard({ npkResult, climate, delay = 0.6 }: Props) {
   // Find primary deficiency
@@ -43,9 +43,9 @@ export default function StressNarrativeCard({ npkResult, climate, delay = 0.6 }:
           <CheckCircle className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-white mb-0.5">Climate Conditions Normal</p>
-            <p className="text-xs text-white/50 leading-relaxed">
+            <p className="text-xs text-white/70 leading-relaxed">
               NASA data shows no major heat, drought, or humidity stress events over the past 90 days.
-              The detected <span className="text-white/70">{nutrientLabel[primaryNutrient]}</span> deficiency
+              The detected <span className="font-semibold text-white">{nutrientLabel[primaryNutrient]}</span> deficiency
               likely has a soil chemistry or agronomic cause — check soil pH and application history.
             </p>
           </div>
@@ -79,7 +79,7 @@ export default function StressNarrativeCard({ npkResult, climate, delay = 0.6 }:
         </div>
 
         {/* Narrative sentence */}
-        <p className="text-xs text-white/65 leading-relaxed mb-2.5">
+        <p className="text-xs text-white/80 leading-relaxed mb-2.5">
           Your leaf shows{' '}
           <span className="font-semibold text-white">{nutrientLabel[primaryNutrient]} deficiency.</span>{' '}
           NASA POWER data recorded{' '}

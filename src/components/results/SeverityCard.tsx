@@ -15,17 +15,17 @@ const severityConfig: Record<SeverityLevel, {
   description: string;
 }> = {
   low: {
-    color: '#22C55E',
+    color: '#4ade80',
     icon: CheckCircle,
     description: 'Minor nutrient imbalance detected. Crop yield impact is minimal with timely correction.',
   },
   moderate: {
-    color: '#EAB308',
+    color: '#fb923c',
     icon: AlertTriangle,
     description: 'Significant nutrient stress detected. Intervention recommended within 5 days to prevent yield loss.',
   },
   severe: {
-    color: '#EF4444',
+    color: '#f87171',
     icon: XCircle,
     description: 'Critical deficiency detected. Immediate action required — every day of delay reduces recovery potential.',
   },
@@ -58,7 +58,7 @@ export default function SeverityCard({ severity, delay = 0 }: Props) {
               {capitalize(severity)}
             </span>
           </div>
-          <p className="text-xs text-white/50 leading-relaxed">{config.description}</p>
+          <p className="text-xs text-white/65 leading-relaxed">{config.description}</p>
         </div>
       </div>
     </GlassCard>

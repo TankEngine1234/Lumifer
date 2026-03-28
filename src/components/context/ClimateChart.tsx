@@ -51,14 +51,14 @@ export default function ClimateChart({ climate }: Props) {
       {
         label: 'Tmax',
         values: tmaxVals,
-        color: '#ffffff',
-        dotColor: 'rgba(255,255,255,0.8)',
+        color: '#fb923c',
+        dotColor: 'rgba(251,146,60,0.85)',
       },
       {
         label: 'Tmin',
         values: tminVals,
-        color: 'rgba(255,255,255,0.35)',
-        dotColor: 'rgba(255,255,255,0.4)',
+        color: 'rgba(251,146,60,0.30)',
+        dotColor: 'rgba(251,146,60,0.4)',
       },
     ],
     metrics: [
@@ -76,13 +76,13 @@ export default function ClimateChart({ climate }: Props) {
       if (bandStart === -1) bandStart = i;
     } else {
       if (bandStart !== -1) {
-        highlightBands.push({ startIdx: bandStart, endIdx: i - 1, color: 'rgba(239,68,68,0.13)' });
+        highlightBands.push({ startIdx: bandStart, endIdx: i - 1, color: 'rgba(248,113,113,0.12)' });
         bandStart = -1;
       }
     }
   });
   if (bandStart !== -1) {
-    highlightBands.push({ startIdx: bandStart, endIdx: dates.length - 1, color: 'rgba(239,68,68,0.13)' });
+    highlightBands.push({ startIdx: bandStart, endIdx: dates.length - 1, color: 'rgba(248,113,113,0.12)' });
   }
 
   // Threshold line only if relevant
@@ -98,7 +98,7 @@ export default function ClimateChart({ climate }: Props) {
       data={graphData}
       barSeries={{
         values: precipVals,
-        rainColor: 'rgba(6,182,212,0.75)',
+        rainColor: 'rgba(96,165,250,0.70)',
         dryColor: 'rgba(255,255,255,0.06)',
         rainThreshold: 1.0,
         label: 'Precip (mm)',
@@ -106,7 +106,7 @@ export default function ClimateChart({ climate }: Props) {
       thresholdLine={showThreshold ? {
         value: 34,
         label: '34°C stress',
-        color: '#ef4444',
+        color: '#f87171',
       } : undefined}
       highlightBands={highlightBands}
     />

@@ -1,36 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-  /* Background gradient palette */
-  --color-bg-dark: #0A0A0A;
-  --color-bg-deep-green: #0D2818;
-  --color-bg-forest: #1A472A;
+  /* App background */
+  --color-bg-base: #0a0a0a;
+  --color-bg-surface: #141414;
+  --color-bg-elevated: #1c1c1c;
 
-  /* Nutrient colors */
-  --color-nitrogen: #EAB308;
-  --color-phosphorus: #A855F7;
-  --color-potassium: #F59E0B;
+  /* Nutrient colors — dashboard palette */
+  --color-nitrogen: #4ade80;      /* green-400: healthy readout */
+  --color-phosphorus: #60a5fa;    /* blue-400: phosphorus */
+  --color-potassium: #fb923c;     /* orange-400: potassium */
+
+  /* Deficiency accent — coral red (matches dashboard "alert" color) */
+  --color-deficient: #f87171;     /* red-400 */
 
   /* NDVI zone colors */
-  --color-ndvi-healthy: #22C55E;
-  --color-ndvi-stress: #EAB308;
-  --color-ndvi-severe: #EF4444;
+  --color-ndvi-healthy: #4ade80;
+  --color-ndvi-stress: #fb923c;
+  --color-ndvi-severe: #f87171;
 
   /* Severity colors */
-  --color-severity-low: #22C55E;
-  --color-severity-moderate: #EAB308;
-  --color-severity-severe: #EF4444;
+  --color-severity-low: #4ade80;
+  --color-severity-moderate: #fb923c;
+  --color-severity-severe: #f87171;
 
-  /* Glass card */
-  --color-glass-bg: rgba(255, 255, 255, 0.05);
-  --color-glass-border: rgba(255, 255, 255, 0.1);
+  /* Card surfaces */
+  --color-card-bg: #161616;
+  --color-card-border: rgba(255, 255, 255, 0.08);
 
   /* Heatmap ramp */
   --color-heatmap-blue: #1E3A8A;
   --color-heatmap-cyan: #06B6D4;
-  --color-heatmap-green: #22C55E;
-  --color-heatmap-yellow: #EAB308;
-  --color-heatmap-red: #EF4444;
+  --color-heatmap-green: #4ade80;
+  --color-heatmap-yellow: #fb923c;
+  --color-heatmap-red: #f87171;
 }
 
 * {
@@ -47,15 +50,13 @@ html, body, #root {
   font-family: -apple-system, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--color-bg-dark);
+  background: var(--color-bg-base);
   color: white;
 }
 
-/* Utility for frosted glass cards */
+/* Solid dark card — replaces frosted glass */
 .glass {
-  background: var(--color-glass-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--color-glass-border);
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
   border-radius: 1rem;
 }

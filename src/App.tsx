@@ -5,7 +5,6 @@ import { getNextPhase, getPhaseDelay } from './animations/demoSequence';
 import { useNASAPower } from './hooks/useNASAPower';
 import { FIELD_CENTER } from './data/fieldZones';
 import GradientBackground from './components/ui/GradientBackground';
-import Badge from './components/ui/Badge';
 import Logo from './components/ui/Logo';
 import FieldMapView from './components/fieldmap/FieldMapView';
 import CameraView from './components/capture/CameraView';
@@ -166,7 +165,6 @@ function App() {
         )}
       </AnimatePresence>
 
-      <Badge phase={phase} />
     </GradientBackground>
   );
 }
