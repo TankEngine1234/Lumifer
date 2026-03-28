@@ -6,7 +6,8 @@ import { fallbackPredict } from '../models/fallbackInference';
 import { yieldImpactByDeficiency } from '../data/nutrientThresholds';
 
 export function useInference() {
-  const [model, setModel] = useState<tf.LayersModel | null>(null);
+  // 🚨 Updated to tf.GraphModel to match our earlier loadModel fix
+  const [model, setModel] = useState<tf.GraphModel | null>(null);
   const [isModelReady, setIsModelReady] = useState(false);
   const [useFallback, setUseFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export function useInference() {
       indices: VegetationIndices,
       colorData: ColorData
     ): Promise<NPKResult> => {
-      // Fallback path: use heuristic inference
+      // Fallback path: use heuristic inference if AI isn't available
       if (useFallback || !model || !tensor) {
         return fallbackPredict(indices, colorData);
       }
@@ -49,6 +50,7 @@ export function useInference() {
 
         const dominantNutrient = nConf >= pConf && nConf >= kConf ? 'nitrogen' :
           pConf >= kConf ? 'phosphorus' : 'potassium';
+        
         const yieldImpact = yieldImpactByDeficiency[dominantNutrient][severity].lossPercent;
 
         return {
@@ -61,10 +63,16 @@ export function useInference() {
       } catch (err) {
         console.error('[Lumifer] Model inference failed, using fallback:', err);
         return fallbackPredict(indices, colorData);
+      } finally {
+        // 🚨 THIS IS THE FIX: Physically delete the tensor from GPU memory
+        // This prevents the browser from crashing after scanning 3 or 4 leaves.
+        if (tensor) {
+          tensor.dispose();
+        }
       }
     },
     [model, useFallback]
   );
 
-  return { isModelReady, runInference, error };
+  return { isModelReady, runInference, error, useFallback };
 }
