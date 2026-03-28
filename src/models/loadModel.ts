@@ -1,25 +1,31 @@
 import * as tf from '@tensorflow/tfjs';
 
-let cachedModel: tf.LayersModel | null = null;
+// CHANGE 1: Use GraphModel instead of LayersModel
+let cachedModel: tf.GraphModel | null = null;
 
-// Load the trained MobileNetV2 NPK deficiency model
-// Model files expected at /models/npk-mobilenet/model.json
-export async function loadNPKModel(): Promise<tf.LayersModel> {
+export async function loadNPKModel(): Promise<tf.GraphModel> {
   if (cachedModel) return cachedModel;
 
   try {
-    cachedModel = await tf.loadLayersModel('/models/npk-mobilenet/model.json');
+    // CHANGE 2: Use loadGraphModel
+    cachedModel = await tf.loadGraphModel('/models/npk-mobilenet/model.json');
     console.log('[Lumifer] NPK model loaded successfully');
+    
+    // CHANGE 3: The "Warmup" (Crucial for UX)
+    // Compiling WebGL shaders takes 1-3 seconds. Do it now in the background,
+    // otherwise the app will freeze the moment the user hits "Scan".
+    tf.tidy(() => {
+      cachedModel!.predict(tf.zeros([1, 224, 224, 3])); // Adjust shape if needed
+    });
+    
     return cachedModel;
   } catch (err) {
-    console.warn('[Lumifer] Failed to load NPK model, falling back to heuristic inference:', err);
+    console.warn('[Lumifer] Failed to load NPK model:', err);
     throw err;
   }
 }
 
-// Run inference on preprocessed tensor
-// Returns [N_confidence, P_confidence, K_confidence] as number[]
-export async function predict(model: tf.LayersModel, tensor: tf.Tensor4D): Promise<number[]> {
+export async function predict(model: tf.GraphModel, tensor: tf.Tensor4D): Promise<number[]> {
   return tf.tidy(() => {
     const prediction = model.predict(tensor) as tf.Tensor;
     return Array.from(prediction.dataSync());
