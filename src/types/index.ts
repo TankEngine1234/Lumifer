@@ -8,7 +8,36 @@ export type DemoPhase =
   | 'captured'
   | 'analyzing'
   | 'heatmap'
-  | 'results';
+  | 'results'
+  | 'context';
+
+// ── NASA POWER API ──
+export interface NASAPowerDaily {
+  T2M_MAX: Record<string, number>;
+  T2M_MIN: Record<string, number>;
+  PRECTOTCORR: Record<string, number>;
+  RH2M: Record<string, number>;
+  ALLSKY_SFC_PAR_TOT: Record<string, number>;
+}
+
+export type NASAFetchStatus = 'idle' | 'loading' | 'success' | 'error' | 'offline';
+
+export interface StressEvent {
+  type: 'heat' | 'drought' | 'humidity';
+  startDate: string;
+  endDate: string;
+  durationDays: number;
+  peakValue: number;
+}
+
+export interface NASAClimateResult {
+  status: NASAFetchStatus;
+  daily: NASAPowerDaily | null;
+  stressEvents: StressEvent[];
+  heatDays: number;
+  droughtGap: number;
+  lowHumidityDays: number;
+}
 
 // ── Nutrient Types ──
 export type NutrientType = 'nitrogen' | 'phosphorus' | 'potassium';

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { DemoPhase, NPKResult, ProcessingResult } from './types';
 import { getNextPhase, getPhaseDelay } from './animations/demoSequence';
+import { useNASAPower } from './hooks/useNASAPower';
+import { FIELD_CENTER } from './data/fieldZones';
 import GradientBackground from './components/ui/GradientBackground';
 import Badge from './components/ui/Badge';
 import Logo from './components/ui/Logo';
@@ -10,6 +12,7 @@ import CameraView from './components/capture/CameraView';
 import AnalysisOverlay from './components/analysis/AnalysisOverlay';
 import SpectralHeatmap from './components/analysis/SpectralHeatmap';
 import ResultsView from './components/results/ResultsView';
+import NASAContextView from './components/context/NASAContextView';
 
 function App() {
   const [phase, setPhase] = useState<DemoPhase>('splash');
@@ -22,6 +25,9 @@ function App() {
 
   // Check for demo mode via query param
   const isDemo = new URLSearchParams(window.location.search).has('demo');
+
+  // Pre-fetch NASA POWER data at mount so it's ready by the time context phase is reached
+  const nasaClimate = useNASAPower(FIELD_CENTER[1], FIELD_CENTER[0]);
 
   // Auto-advance in demo mode
   useEffect(() => {
@@ -146,6 +152,16 @@ function App() {
           <ResultsView
             key="results"
             result={npkResult}
+            onNASAContext={() => advanceTo('context')}
+          />
+        )}
+
+        {phase === 'context' && npkResult && (
+          <NASAContextView
+            key="context"
+            npkResult={npkResult}
+            climate={nasaClimate}
+            onComplete={() => advanceTo('splash')}
           />
         )}
       </AnimatePresence>

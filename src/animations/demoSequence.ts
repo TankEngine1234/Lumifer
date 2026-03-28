@@ -12,13 +12,14 @@ export const demoTimeline: { phase: DemoPhase; delay: number }[] = [
   { phase: 'analyzing', delay: 34000 },
   { phase: 'heatmap', delay: 40000 },
   { phase: 'results', delay: 47000 },
+  { phase: 'context', delay: 65000 },
 ];
 
 // Get the next phase in the sequence
 export function getNextPhase(current: DemoPhase): DemoPhase | null {
   const phases: DemoPhase[] = [
     'splash', 'fieldmap', 'zone', 'capture', 'lock',
-    'captured', 'analyzing', 'heatmap', 'results',
+    'captured', 'analyzing', 'heatmap', 'results', 'context',
   ];
   const idx = phases.indexOf(current);
   if (idx === -1 || idx === phases.length - 1) return null;

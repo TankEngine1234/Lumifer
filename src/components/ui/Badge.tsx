@@ -6,7 +6,8 @@ interface Props {
 }
 
 export default function Badge({ phase }: Props) {
-  const isProminent = phase === 'results';
+  const isProminent = phase === 'results' || phase === 'context';
+  const isNASA = phase === 'context';
 
   return (
     <motion.div
@@ -32,7 +33,7 @@ export default function Badge({ phase }: Props) {
       </span>
 
       <span className="text-xs font-medium text-white/70 whitespace-nowrap">
-        Running locally on your device
+        {isNASA ? 'NASA POWER · Live satellite data' : 'Running locally on your device'}
       </span>
     </motion.div>
   );

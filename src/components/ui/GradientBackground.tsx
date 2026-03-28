@@ -18,6 +18,7 @@ const glowPositions: Record<DemoPhase, string> = {
   analyzing: '50% 45%',
   heatmap: '50% 40%',
   results: '50% 35%',
+  context: '50% 60%',
 };
 
 export default function GradientBackground({ phase, children }: Props) {

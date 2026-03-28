@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
+import { Satellite } from 'lucide-react';
 import type { NPKResult } from '../../types';
 import { staggerContainer, staggerItem } from '../../animations/variants';
+import { springDefault } from '../../animations/springs';
 import { getActionPlansForResult } from '../../data/actionPlans';
 import NutrientDial from './NutrientDial';
 import SeverityCard from './SeverityCard';
@@ -9,9 +11,10 @@ import YieldImpactCard from './YieldImpactCard';
 
 interface Props {
   result: NPKResult;
+  onNASAContext?: () => void;
 }
 
-export default function ResultsView({ result }: Props) {
+export default function ResultsView({ result, onNASAContext }: Props) {
   const deficiencies = (
     ['nitrogen', 'phosphorus', 'potassium'] as const
   )
@@ -83,9 +86,28 @@ export default function ResultsView({ result }: Props) {
       </motion.div>
 
       {/* Yield impact card */}
-      <motion.div variants={staggerItem} className="shrink-0">
+      <motion.div variants={staggerItem} className="mb-3 shrink-0">
         <YieldImpactCard result={result} delay={2.4} />
       </motion.div>
+
+      {/* NASA context CTA */}
+      {onNASAContext && (
+        <motion.button
+          variants={staggerItem}
+          className="shrink-0 w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold"
+          style={{
+            background: 'rgba(11,61,145,0.35)',
+            border: '1px solid rgba(96,165,250,0.30)',
+            color: '#93c5fd',
+          }}
+          whileTap={{ scale: 0.97 }}
+          transition={springDefault}
+          onClick={onNASAContext}
+        >
+          <Satellite className="w-4 h-4" />
+          See NASA Climate Context
+        </motion.button>
+      )}
     </motion.div>
   );
 }
