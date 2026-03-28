@@ -6,7 +6,6 @@ import { fallbackPredict } from '../models/fallbackInference';
 import { yieldImpactByDeficiency } from '../data/nutrientThresholds';
 
 export function useInference() {
-  // 🚨 Updated to tf.GraphModel to match our earlier loadModel fix
   const [model, setModel] = useState<tf.GraphModel | null>(null);
   const [isModelReady, setIsModelReady] = useState(false);
   const [useFallback, setUseFallback] = useState(false);
@@ -22,7 +21,7 @@ export function useInference() {
       .catch((err) => {
         console.warn('[Lumifer] Using fallback inference:', err);
         setUseFallback(true);
-        setIsModelReady(true); // Still ready — using fallback
+        setIsModelReady(true); 
         setError('Model unavailable, using heuristic inference');
       });
   }, []);
@@ -33,13 +32,15 @@ export function useInference() {
       indices: VegetationIndices,
       colorData: ColorData
     ): Promise<NPKResult> => {
-      // Fallback path: use heuristic inference if AI isn't available
-      if (useFallback || !model || !tensor) {
-        return fallbackPredict(indices, colorData);
-      }
-
-      // Primary path: use trained model
+      
+      // 🚨 FIX: Wrap EVERYTHING in try/finally to guarantee disposal
       try {
+        // Fallback path: use heuristic inference if AI isn't available
+        if (useFallback || !model || !tensor) {
+          return fallbackPredict(indices, colorData);
+        }
+
+        // Primary path: use trained model
         const [nConf, pConf, kConf] = await predict(model, tensor);
 
         const getLevel = (conf: number) =>
@@ -64,8 +65,7 @@ export function useInference() {
         console.error('[Lumifer] Model inference failed, using fallback:', err);
         return fallbackPredict(indices, colorData);
       } finally {
-        // 🚨 THIS IS THE FIX: Physically delete the tensor from GPU memory
-        // This prevents the browser from crashing after scanning 3 or 4 leaves.
+        // 🛡️ BULLETPROOF: This now fires no matter what path the logic takes
         if (tensor) {
           tensor.dispose();
         }
