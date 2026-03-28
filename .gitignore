@@ -21,6 +21,11 @@ __pycache__/
 .env
 .env.*
 
+# GEE service account keys
+*-key.json
+*-sa-key.json
+*.pem
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

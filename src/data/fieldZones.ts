@@ -1,9 +1,9 @@
 import type { FieldZone } from '../types';
 
-// Pre-computed field zones based on real Sentinel-2 NDVI analysis
-// NDVI ranges: healthy > 0.6, stress 0.3–0.6, critical < 0.3
-// Geographic coordinates: real farmland near College Station, TX
-// (Brazos County agricultural fields, 30.57°N 96.30°W)
+// FALLBACK DATA — used only when public/field-zones.json cannot be fetched (offline PWA).
+// Real GEE-derived field data is loaded at runtime by src/hooks/useFieldZones.ts.
+// These hardcoded zones (Brazos County, TX) are the safety net — do not update them
+// to the real region; they exist so the app renders something if the JSON is unavailable.
 
 export const fieldZones: FieldZone[] = [
   {

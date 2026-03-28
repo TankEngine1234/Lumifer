@@ -3,7 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import type { DemoPhase, NPKResult, ProcessingResult } from './types';
 import { getNextPhase, getPhaseDelay } from './animations/demoSequence';
 import { useNASAPower } from './hooks/useNASAPower';
-import { FIELD_CENTER } from './data/fieldZones';
+import { useFieldZones } from './hooks/useFieldZones';
 import GradientBackground from './components/ui/GradientBackground';
 import Logo from './components/ui/Logo';
 import FieldMapView from './components/fieldmap/FieldMapView';
@@ -25,8 +25,11 @@ function App() {
   // Check for demo mode via query param
   const isDemo = new URLSearchParams(window.location.search).has('demo');
 
-  // Pre-fetch NASA POWER data at mount so it's ready by the time context phase is reached
-  const nasaClimate = useNASAPower(FIELD_CENTER[1], FIELD_CENTER[0]);
+  // Load GEE-derived field zones from public/field-zones.json (falls back to hardcoded on error)
+  const { zones, polygons, center, zoom, status: zonesStatus, region } = useFieldZones();
+
+  // Pre-fetch NASA POWER data — center updates once field-zones.json resolves (Imperial Valley)
+  const nasaClimate = useNASAPower(center[1], center[0]);
 
   // Auto-advance in demo mode
   useEffect(() => {
@@ -106,6 +109,12 @@ function App() {
         {phase === 'fieldmap' && (
           <FieldMapView
             key="fieldmap"
+            zones={zones}
+            polygons={polygons}
+            center={center}
+            zoom={zoom}
+            zonesLoading={zonesStatus === 'loading'}
+            region={region}
             onZoneSelect={() => advanceTo('zone')}
           />
         )}
@@ -113,6 +122,12 @@ function App() {
         {phase === 'zone' && (
           <FieldMapView
             key="zone"
+            zones={zones}
+            polygons={polygons}
+            center={center}
+            zoom={zoom}
+            zonesLoading={zonesStatus === 'loading'}
+            region={region}
             selectedZone
             onScanLeaf={() => advanceTo('capture')}
           />

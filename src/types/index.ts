@@ -91,6 +91,17 @@ export interface FieldZone {
   lat: number; // geographic latitude
 }
 
+// Rectangular field polygon from GEE segmentation
+export interface FieldPolygon {
+  id: string;
+  meanNdvi: number;
+  geeLabel: 'LOW' | 'MEDIUM' | 'HIGH';
+  severity: SeverityLevel;
+  areaHa: number;
+  priority: number;
+  bounds: [number, number, number, number]; // [west, south, east, north]
+}
+
 // ── Dataset Types ──
 export interface LeafSample {
   id: string;
