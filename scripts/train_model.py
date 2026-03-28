@@ -127,3 +127,46 @@ def train():
         .prefetch(tf.data.AUTOTUNE)
 
     print("\nCreating model...")
+    model = create_model()
+    model.summary()
+
+    print("\nTraining...")
+    callbacks = [
+        keras.callbacks.EarlyStopping(
+            monitor='val_loss', 
+            patience=6, 
+            restore_best_weights=True
+        ),
+        keras.callbacks.ReduceLROnPlateau(
+            monitor='val_loss', 
+            factor=0.5, 
+            patience=3, 
+            min_lr=1e-6
+        ),
+    ]
+
+    history = model.fit(
+        train_ds,
+        validation_data=val_ds,
+        epochs=EPOCHS,
+        callbacks=callbacks,
+    )
+
+    # Save model in SavedModel format (Best for tfjs_converter)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    model.export(OUTPUT_DIR)
+    print(f"\nModel exported to {OUTPUT_DIR}")
+
+    # Print class-level performance
+    print("\nValidation Performance:")
+    y_pred = model.predict(X_val)
+    for i, name in enumerate(['Nitrogen', 'Phosphorus', 'Potassium']):
+        pred_binary = (y_pred[:, i] > 0.5).astype(int)
+        true_binary = y_val[:, i].astype(int)
+        acc = np.mean(pred_binary == true_binary)
+        print(f"  {name}: {acc:.2%} accuracy")
+
+    print(f"\nNext step: Run your export_tfjs.sh script!")
+
+if __name__ == '__main__':
+    train()
