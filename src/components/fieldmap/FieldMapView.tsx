@@ -9,6 +9,9 @@ import type { FieldZone, FieldPolygon } from '../../types';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
 
+// Farm AOI — Imperial Valley, Holtville
+const FARM_BOUNDS = { west: -115.39, south: 32.84, east: -115.33, north: 32.89 };
+
 interface Props {
   zones: FieldZone[];
   polygons: FieldPolygon[];
@@ -26,13 +29,6 @@ const GEE_FILL: Record<string, string> = {
   severe:   '#FF0000',
   moderate: '#FFFF00',
   low:      '#00CC00',
-};
-
-// Priority outlines: black for RED priority, orange for YELLOW priority, dark green for healthy
-const GEE_OUTLINE: Record<string, string> = {
-  severe:   '#000000',
-  moderate: '#FF8C00',
-  low:      '#005500',
 };
 
 export default function FieldMapView({
@@ -53,6 +49,7 @@ export default function FieldMapView({
   const lastPolygonIdsRef = useRef<string>('');
   const [active, setActive] = useState<FieldZone | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [polygonsVisible, setPolygonsVisible] = useState(true);
 
   // Stats computed from polygons
   const stats = useMemo(() => {
@@ -86,7 +83,61 @@ export default function FieldMapView({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Field polygon layers — colored rectangles matching GEE screenshot ─────
+  // ── Static layers: farm boundary box + NDVI raster tile ──────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    // Farm boundary box — black rectangle around the entire AOI
+    if (!map.getSource('farm-boundary')) {
+      map.addSource('farm-boundary', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'Polygon',
+            coordinates: [[
+              [FARM_BOUNDS.west, FARM_BOUNDS.south],
+              [FARM_BOUNDS.east, FARM_BOUNDS.south],
+              [FARM_BOUNDS.east, FARM_BOUNDS.north],
+              [FARM_BOUNDS.west, FARM_BOUNDS.north],
+              [FARM_BOUNDS.west, FARM_BOUNDS.south],
+            ]],
+          },
+        },
+      });
+      map.addLayer({
+        id: 'farm-boundary-line',
+        type: 'line',
+        source: 'farm-boundary',
+        paint: { 'line-color': '#FFFFFF', 'line-width': 3, 'line-opacity': 1 },
+      });
+    }
+
+    // NDVI raster tile — Vegetation Health layer from GEE
+    const { west, south, east, north } = FARM_BOUNDS;
+    fetch(`/api/tiles?west=${west}&south=${south}&east=${east}&north=${north}`)
+      .then(r => r.json())
+      .then(({ tileUrl }: { tileUrl: string }) => {
+        if (!tileUrl || !mapRef.current) return;
+        const m = mapRef.current;
+        if (m.getSource('ndvi-raster')) return;
+        m.addSource('ndvi-raster', {
+          type: 'raster',
+          tiles: [tileUrl],
+          tileSize: 256,
+        });
+        m.addLayer(
+          { id: 'ndvi-raster-layer', type: 'raster', source: 'ndvi-raster',
+            paint: { 'raster-opacity': 0.85, 'raster-resampling': 'nearest' } },
+          'farm-boundary-line', // insert below the boundary box
+        );
+      })
+      .catch(() => {}); // server offline — skip silently, vector polygons still show
+  }, [mapLoaded]);
+
+  // ── Field polygon layers — fills + outlines + priority overlays ───────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -95,11 +146,11 @@ export default function FieldMapView({
     if (polyIds === lastPolygonIdsRef.current) return;
     lastPolygonIdsRef.current = polyIds;
 
-    // Clear previous layers/sources
+    // Clear previous field/priority layers and sources
     const style = map.getStyle();
     if (style?.sources) {
       Object.keys(style.sources)
-        .filter(k => k.startsWith('field-') || k.startsWith('zone-'))
+        .filter(k => k.startsWith('field-') || k.startsWith('zone-') || k.startsWith('priority-'))
         .forEach(sid => {
           [`${sid}-fill`, `${sid}-line`].forEach(id => {
             if (map.getLayer(id)) map.removeLayer(id);
@@ -118,7 +169,6 @@ export default function FieldMapView({
       const sourceId = `field-${field.id}`;
       const [west, south, east, north] = field.bounds;
       const fillColor = GEE_FILL[field.severity];
-      const outlineColor = GEE_OUTLINE[field.severity];
 
       map.addSource(sourceId, {
         type: 'geojson',
@@ -138,36 +188,86 @@ export default function FieldMapView({
         },
       });
 
-      // Fill layer
+      // Fill — reduced opacity so NDVI raster shows through
       map.addLayer({
         id: `${sourceId}-fill`,
         type: 'fill',
         source: sourceId,
         paint: {
           'fill-color': fillColor,
-          'fill-opacity': 0.55,
+          'fill-opacity': 0.4,
         },
       });
 
-      // Outline — 2px stroke, priority-colored
+      // Thin outline matching fill color (field boundary marker only)
       map.addLayer({
         id: `${sourceId}-line`,
         type: 'line',
         source: sourceId,
         paint: {
-          'line-color': outlineColor,
-          'line-width': field.severity === 'severe' ? 2.5 : 2,
-          'line-opacity': 0.9,
+          'line-color': fillColor,
+          'line-width': 1.5,
+          'line-opacity': 0.8,
         },
       });
     });
+
+    // ── Priority outline layers (top 15 by priority score) ──────────────────
+    const toFeature = (field: FieldPolygon) => {
+      const [w, s, e, n] = field.bounds;
+      return {
+        type: 'Feature' as const,
+        properties: { id: field.id },
+        geometry: {
+          type: 'Polygon' as const,
+          coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]],
+        },
+      };
+    };
+
+    // PRIORITY - RED Fields Must Visit → black 3px outline
+    const topRed = [...polygons]
+      .filter(p => p.severity === 'severe')
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, 15);
+
+    if (topRed.length > 0) {
+      map.addSource('priority-red', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: topRed.map(toFeature) },
+      });
+      map.addLayer({
+        id: 'priority-red-line',
+        type: 'line',
+        source: 'priority-red',
+        paint: { 'line-color': '#000000', 'line-width': 3, 'line-opacity': 1 },
+      });
+    }
+
+    // PRIORITY - YELLOW Fields Monitor → orange 3px outline
+    const topOrange = [...polygons]
+      .filter(p => p.severity === 'moderate')
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, 15);
+
+    if (topOrange.length > 0) {
+      map.addSource('priority-orange', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: topOrange.map(toFeature) },
+      });
+      map.addLayer({
+        id: 'priority-orange-line',
+        type: 'line',
+        source: 'priority-orange',
+        paint: { 'line-color': '#FF8C00', 'line-width': 3, 'line-opacity': 1 },
+      });
+    }
 
     // Click handler on polygons — find closest zone for ZoneCard
     const clickHandler = (e: mapboxgl.MapMouseEvent) => {
       if (!e.lngLat) return;
       const point = e.lngLat;
 
-      // Find which polygon was clicked
       const features = map.queryRenderedFeatures(e.point, {
         layers: sorted.map(f => `field-${f.id}-fill`),
       });
@@ -177,7 +277,6 @@ export default function FieldMapView({
         const clickedPoly = polygons.find(p => p.id === clickedId);
 
         if (clickedPoly) {
-          // Find matching zone or create a temporary one from polygon data
           const matchedZone = zones.find(z =>
             Math.abs(z.ndviValue - clickedPoly.meanNdvi) < 0.01
           );
@@ -186,7 +285,6 @@ export default function FieldMapView({
             setActive(matchedZone);
             onZoneSelect?.();
           } else {
-            // Build a zone from the polygon for display
             const [w, s, ea, n] = clickedPoly.bounds;
             const tempZone: FieldZone = {
               id: `click-${clickedPoly.id}`,
@@ -219,7 +317,6 @@ export default function FieldMapView({
 
     map.on('click', clickHandler);
 
-    // Cursor change on hover
     const enterHandler = () => { map.getCanvas().style.cursor = 'pointer'; };
     const leaveHandler = () => { map.getCanvas().style.cursor = ''; };
 
@@ -238,6 +335,20 @@ export default function FieldMapView({
       });
     };
   }, [polygons, zones, mapLoaded, onZoneSelect]);
+
+  // ── Polygon visibility toggle ─────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+    const vis = polygonsVisible ? 'visible' : 'none';
+    const style = map.getStyle();
+    if (!style?.layers) return;
+    style.layers.forEach(layer => {
+      if (layer.id.startsWith('field-') || layer.id.startsWith('priority-')) {
+        map.setLayoutProperty(layer.id, 'visibility', vis);
+      }
+    });
+  }, [polygonsVisible, mapLoaded]);
 
   // ── Auto-select first stressed zone when selectedZone prop is set ─────────
   useEffect(() => {
@@ -297,6 +408,22 @@ export default function FieldMapView({
         )}
       </motion.div>
 
+      {/* Polygon toggle button — top right, below header */}
+      <motion.button
+        className="absolute top-12 right-4 z-20 px-3 py-1.5 rounded-lg text-[11px] font-semibold"
+        style={{
+          background: polygonsVisible ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          color: '#1a1a1a',
+        }}
+        onClick={() => setPolygonsVisible(v => !v)}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: mapLoaded ? 1 : 0 }}
+        transition={{ delay: 0.7 }}
+      >
+        {polygonsVisible ? 'Hide Polygons' : 'Show Polygons'}
+      </motion.button>
+
       {/* Stats panel — top right */}
       <motion.div
         className="absolute top-24 right-4 z-20"
@@ -342,7 +469,6 @@ export default function FieldMapView({
           <p className="text-[10px] text-gray-400 mb-2.5">USDA CDL + spectral mask applied</p>
 
           <div className="flex flex-col gap-1.5">
-            {/* Color classes */}
             <div className="flex items-center gap-2.5">
               <span className="w-4 h-4 rounded-sm shrink-0" style={{ background: '#00CC00' }} />
               <span className="text-[11px] text-gray-700">GREEN = Healthy (NDVI &gt; 0.55)</span>
@@ -355,8 +481,6 @@ export default function FieldMapView({
               <span className="w-4 h-4 rounded-sm shrink-0" style={{ background: '#FF0000' }} />
               <span className="text-[11px] text-gray-700">RED = Critical (NDVI &lt; 0.35)</span>
             </div>
-
-            {/* Outline classes */}
             <div className="flex items-center gap-2.5">
               <span className="w-4 h-4 rounded-sm shrink-0" style={{ background: '#FF8C00' }} />
               <span className="text-[11px] text-gray-700">ORANGE outline = Yellow priority fields</span>
@@ -365,8 +489,6 @@ export default function FieldMapView({
               <span className="w-4 h-4 rounded-sm shrink-0" style={{ background: '#000000' }} />
               <span className="text-[11px] text-gray-700">BLACK outline = Red priority fields</span>
             </div>
-
-            {/* Masked areas */}
             <div className="flex items-center gap-2.5">
               <span className="w-4 h-4 rounded-sm shrink-0" style={{ background: '#808080' }} />
               <span className="text-[11px] text-gray-700">GRAY = Roads/buildings/plowed (CDL masked)</span>

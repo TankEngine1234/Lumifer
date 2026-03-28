@@ -24,6 +24,7 @@ __pycache__/
 # GEE service account keys
 *-key.json
 *-sa-key.json
+gen-lang-client-*.json
 *.pem
 
 # Editor directories and files

@@ -143,7 +143,7 @@ export async function analyzeFields(west, south, east, north) {
     .focal_min({ radius: 10, units: 'meters' })
     .focal_max({ radius: 8, units: 'meters' });
   const blobSize = fieldBlobs.selfMask().connectedPixelCount(1024, true);
-  const cleanBlobs = fieldBlobs.updateMask(blobSize.gte(25));
+  const cleanBlobs = fieldBlobs.updateMask(blobSize.gte(10));
 
   // Vectorize
   const fieldPolygons = cleanBlobs.selfMask().reduceToVectors({
@@ -266,14 +266,14 @@ export async function analyzeFields(west, south, east, north) {
  */
 export async function getNDVITileUrl(west, south, east, north) {
   const farm = ee.Geometry.Rectangle([west, south, east, north]);
-  const { ndviSmooth, farmOnly, dynamicLow, dynamicMed } = buildBase(farm);
+  const { ndviSmooth, farmOnly } = buildBase(farm);
 
+  // Fixed thresholds matching GEE Code Editor (0.25 / 0.35 / 0.55)
   const ndviClassified = ee.Image(0)
-    .where(ndviSmooth.gt(0.15).and(ndviSmooth.lt(dynamicLow)), 1)
-    .where(ndviSmooth.gte(dynamicLow).and(ndviSmooth.lt(dynamicMed)), 2)
-    .where(ndviSmooth.gte(dynamicMed), 3)
-    .updateMask(ndviSmooth.gt(0.15).and(farmOnly))
-    .reproject({ crs: ndviSmooth.projection(), scale: 10 });
+    .where(ndviSmooth.gt(0.25).and(ndviSmooth.lte(0.35)), 1)  // LOW → red
+    .where(ndviSmooth.gt(0.35).and(ndviSmooth.lte(0.55)), 2)  // MEDIUM → yellow
+    .where(ndviSmooth.gt(0.55), 3)                             // HIGH → green
+    .updateMask(ndviSmooth.gt(0.25).and(farmOnly));
 
   const mapInfo = await new Promise((resolve, reject) => {
     ndviClassified.getMapId(
