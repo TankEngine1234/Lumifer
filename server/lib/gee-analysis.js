@@ -272,10 +272,11 @@ export async function getNDVITileUrl(west, south, east, north) {
     .where(ndviSmooth.gt(0.15).and(ndviSmooth.lt(dynamicLow)), 1)
     .where(ndviSmooth.gte(dynamicLow).and(ndviSmooth.lt(dynamicMed)), 2)
     .where(ndviSmooth.gte(dynamicMed), 3)
-    .updateMask(ndviSmooth.gt(0.15).and(farmOnly));
+    .updateMask(ndviSmooth.gt(0.15).and(farmOnly))
+    .reproject({ crs: ndviSmooth.projection(), scale: 10 });
 
   const mapInfo = await new Promise((resolve, reject) => {
-    ndviClassified.getMap(
+    ndviClassified.getMapId(
       { min: 1, max: 3, palette: ['FF0000', 'FFFF00', '00CC00'] },
       (result, error) => {
         if (error) reject(new Error(error));
@@ -284,7 +285,8 @@ export async function getNDVITileUrl(west, south, east, north) {
     );
   });
 
-  return mapInfo.urlFormat;
+  return mapInfo.urlFormat ||
+    `https://earthengine.googleapis.com/v1/${mapInfo.mapid}/tiles/{z}/{x}/{y}`;
 }
 
 /**
@@ -295,7 +297,7 @@ export async function getRGBTileUrl(west, south, east, north) {
   const { image } = buildBase(farm);
 
   const mapInfo = await new Promise((resolve, reject) => {
-    image.getMap(
+    image.getMapId(
       { min: 0.0, max: 0.3, bands: ['B4', 'B3', 'B2'] },
       (result, error) => {
         if (error) reject(new Error(error));
@@ -304,7 +306,8 @@ export async function getRGBTileUrl(west, south, east, north) {
     );
   });
 
-  return mapInfo.urlFormat;
+  return mapInfo.urlFormat ||
+    `https://earthengine.googleapis.com/v1/${mapInfo.mapid}/tiles/{z}/{x}/{y}`;
 }
 
 /**

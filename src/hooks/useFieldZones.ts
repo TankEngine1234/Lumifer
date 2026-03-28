@@ -148,6 +148,11 @@ export function useFieldZones(): FieldZonesResult {
       }
 
       // Try 3: Hardcoded fallback
+      console.warn(
+        '[useFieldZones] All data sources failed. ' +
+        'Run `node server/scripts/generate-field-zones.js` to generate real field data, ' +
+        'or set VITE_USE_GEE_API=true and start the server.'
+      );
       if (!cancelled) setResult(fallbackResult);
     }
 
