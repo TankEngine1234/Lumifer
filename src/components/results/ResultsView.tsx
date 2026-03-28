@@ -32,7 +32,7 @@ export default function ResultsView({ result, onNASAContext }: Props) {
 
   return (
     <motion.div
-      className="absolute inset-0 flex flex-col px-4 pt-12 pb-24"
+      className="absolute inset-0 flex flex-col px-4 pt-12 pb-8"
       variants={staggerContainer}
       initial="hidden"
       animate="visible"
@@ -94,7 +94,7 @@ export default function ResultsView({ result, onNASAContext }: Props) {
       {onNASAContext && (
         <motion.button
           variants={staggerItem}
-          className="shrink-0 w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold"
+          className="mt-auto shrink-0 w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold"
           style={{
             background: 'rgba(11,61,145,0.35)',
             border: '1px solid rgba(96,165,250,0.30)',
