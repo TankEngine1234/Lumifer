@@ -58,6 +58,8 @@ export interface FieldZone {
   severity: SeverityLevel;
   position: { x: number; y: number }; // % position on field image
   size: { width: number; height: number }; // % size
+  lng: number; // geographic longitude
+  lat: number; // geographic latitude
 }
 
 // ── Dataset Types ──
