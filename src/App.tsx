@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { DemoPhase, NPKResult, ProcessingResult } from './types';
 import { getNextPhase, getPhaseDelay } from './animations/demoSequence';
@@ -17,6 +17,9 @@ function App() {
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
   const [npkResult, setNpkResult] = useState<NPKResult | null>(null);
 
+  // 🛡️ FIX: Reference to clear rogue timeouts during manual overrides
+  const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Check for demo mode via query param
   const isDemo = new URLSearchParams(window.location.search).has('demo');
 
@@ -27,16 +30,20 @@ function App() {
     const delay = getPhaseDelay(phase);
     if (delay <= 0) return;
 
-    const timer = setTimeout(() => {
+    transitionTimerRef.current = setTimeout(() => {
       const next = getNextPhase(phase);
       if (next) setPhase(next);
     }, delay);
 
-    return () => clearTimeout(timer);
+    return () => {
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    };
   }, [phase, isDemo]);
 
   // Manual phase advancement
   const advanceTo = useCallback((next: DemoPhase) => {
+    // Clear any pending auto-transitions if the user takes manual control
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
     setPhase(next);
   }, []);
 
@@ -44,8 +51,8 @@ function App() {
     setCapturedImage(imageDataUrl);
     advanceTo('captured');
 
-    // Simulate processing delay, then advance to analyzing
-    setTimeout(() => advanceTo('analyzing'), 500);
+    // Simulate processing delay safely
+    transitionTimerRef.current = setTimeout(() => advanceTo('analyzing'), 500);
   }, [advanceTo]);
 
   const handleProcessingComplete = useCallback((result: ProcessingResult) => {
@@ -61,10 +68,14 @@ function App() {
   useEffect(() => {
     if (tapCount >= 3) {
       setTapCount(0);
+      // 🛡️ FIX: Clear any pending transitions so it doesn't yank us back
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+      
+      // 🛡️ FIX: Math-aligned mock data (0.65 maps perfectly to 'moderate')
       setNpkResult({
-        nitrogen: { confidence: 0.82, level: 'deficient' },
+        nitrogen: { confidence: 0.65, level: 'deficient' },
         phosphorus: { confidence: 0.34, level: 'adequate' },
-        potassium: { confidence: 0.71, level: 'deficient' },
+        potassium: { confidence: 0.45, level: 'adequate' },
         severity: 'moderate',
         yieldImpact: 23,
       });
@@ -78,7 +89,7 @@ function App() {
     <GradientBackground phase={phase}>
       {/* Escape hatch tap zone */}
       <div
-        className="fixed top-0 right-0 w-16 h-16 z-50"
+        className="fixed top-0 right-0 w-16 h-16 z-50 cursor-default"
         onClick={() => setTapCount(c => c + 1)}
       />
 
