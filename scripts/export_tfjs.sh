@@ -1,8 +1,9 @@
 #!/bin/bash
 # Export trained Keras model to TensorFlow.js format
 #
-# Prerequisites:
-#   pip install tensorflowjs
+# Uses a Python venv to avoid protobuf conflicts with tensorflowjs 4.x.
+# The CLI converter is buggy on paths with special characters — this script
+# calls the Python API directly instead.
 #
 # Usage:
 #   bash scripts/export_tfjs.sh
@@ -11,6 +12,7 @@ set -e
 
 INPUT_DIR="models/npk-mobilenet-keras"
 OUTPUT_DIR="public/models/npk-mobilenet"
+VENV_DIR=".venv-tfjs"
 
 if [ ! -d "$INPUT_DIR" ]; then
     echo "Error: Model not found at $INPUT_DIR"
@@ -18,17 +20,36 @@ if [ ! -d "$INPUT_DIR" ]; then
     exit 1
 fi
 
+# Create venv if it doesn't exist
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Creating Python venv at $VENV_DIR..."
+    python3 -m venv "$VENV_DIR"
+    source "$VENV_DIR/bin/activate"
+    pip install --quiet "tensorflow==2.16.2" "tensorflowjs==4.20.0"
+else
+    source "$VENV_DIR/bin/activate"
+fi
+
+mkdir -p "$OUTPUT_DIR"
+
 echo "Converting model to TF.js format..."
 echo "  Input:  $INPUT_DIR"
 echo "  Output: $OUTPUT_DIR"
 
-# Convert with uint8 quantization for smaller bundle (~3-5MB vs ~14MB)
-tensorflowjs_converter \
-    --input_format=tf_saved_model \
-    --output_format=tfjs_graph_model \
-    --quantize_uint8 \
-    "$INPUT_DIR" \
-    "$OUTPUT_DIR"
+python3 - <<'PYEOF'
+import sys, os
+import tensorflowjs as tfjs
+
+input_dir  = "models/npk-mobilenet-keras"
+output_dir = "public/models/npk-mobilenet"
+
+tfjs.converters.convert_tf_saved_model(
+    input_dir,
+    output_dir,
+    quantization_dtype_map={"float16": "*"},
+)
+print("Conversion complete")
+PYEOF
 
 echo ""
 echo "Done! Model exported to $OUTPUT_DIR"
