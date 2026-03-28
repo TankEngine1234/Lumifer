@@ -19,8 +19,8 @@ export function preprocessForModel(imageData: ImageData): tf.Tensor4D {
     // 3. Resize to 224x224 (MobileNetV2 input size)
     const resized = tf.image.resizeBilinear(cropped, [224, 224]);
 
-    // 4. Normalize to [0, 1]
-    const normalized = resized.div(255.0);
+    // 4. Normalize to [-1, 1] (🚨 FIXED FOR MOBILENETV2)
+    const normalized = resized.toFloat().div(tf.scalar(127.5)).sub(tf.scalar(1.0));
 
     // 5. Add batch dimension: [1, 224, 224, 3]
     return normalized.expandDims(0) as tf.Tensor4D;
