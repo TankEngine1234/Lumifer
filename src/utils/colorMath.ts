@@ -1,4 +1,5 @@
 // RGB to HSV conversion
+// Expects r, g, b in [0, 255]. Returns h in [0, 360], s in [0, 1], v in [0, 1]
 export function rgbToHsv(r: number, g: number, b: number): { h: number; s: number; v: number } {
   r /= 255;
   g /= 255;
@@ -32,8 +33,8 @@ export function rgbToHsv(r: number, g: number, b: number): { h: number; s: numbe
 // Map a normalized value (0–1) to a heatmap color ramp
 // deep blue → cyan → green → yellow → red
 export function valueToHeatmapColor(value: number): { r: number; g: number; b: number } {
-  // Clamp to [0, 1]
-  const t = Math.max(0, Math.min(1, value));
+  // 🛡️ Clamp to [0, 1] and safely fallback to 0 if 'value' is ever NaN
+  const t = Math.max(0, Math.min(1, value || 0));
 
   // 5-stop color ramp
   const stops = [
