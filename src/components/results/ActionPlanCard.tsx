@@ -14,38 +14,38 @@ const iconMap: Record<string, typeof Droplets> = {
   Siren,
 };
 
-const nutrientColors: Record<string, string> = {
-  nitrogen: '#4ade80',
-  phosphorus: '#60a5fa',
-  potassium: '#fb923c',
+const nutrientColorMap: Record<string, { color: string, className: string }> = {
+  nitrogen: { color: 'var(--color-nitrogen)', className: 'bg-green-500/20 text-green-400' },
+  phosphorus: { color: 'var(--color-phosphorus)', className: 'bg-blue-500/20 text-blue-400' },
+  potassium: { color: 'var(--color-potassium)', className: 'bg-orange-500/20 text-orange-400' },
 };
 
 export default function ActionPlanCard({ plan, delay = 0 }: Props) {
   const Icon = iconMap[plan.icon] || Droplets;
-  const color = nutrientColors[plan.nutrient] || '#22C55E';
+  const nutrientStyle = nutrientColorMap[plan.nutrient] || nutrientColorMap.nitrogen;
 
   return (
-    <GlassCard delay={delay} className="!p-3">
+    <GlassCard delay={delay} className="p-4">
       <div className="flex items-start gap-3">
         <motion.div
           className="p-2 rounded-lg shrink-0"
-          style={{ backgroundColor: `${color}15` }}
+          style={{ backgroundColor: `${nutrientStyle.color.replace(')',', 0.1)').replace('rgb(','rgba(')}`}}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: delay + 0.15, type: 'spring', stiffness: 400, damping: 10 }}
         >
-          <Icon className="w-4 h-4" style={{ color }} />
+          <Icon className="w-4 h-4" style={{ color: nutrientStyle.color }} />
         </motion.div>
 
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-semibold text-white mb-1">{plan.title}</h4>
-          <p className="text-xs text-white/65 leading-relaxed mb-2">{plan.description}</p>
+          <p className="text-sm text-white/60 leading-relaxed mb-3">{plan.description}</p>
 
           <div className="flex flex-wrap gap-2">
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white/8 text-white/80 border border-white/10">
+            <span className="text-xs font-medium px-2 py-1 rounded-md bg-white/10 text-white/70 border-white/20">
               {plan.rate}
             </span>
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white/8 text-white/80 border border-white/10">
+            <span className="text-xs font-medium px-2 py-1 rounded-md bg-white/10 text-white/70 border-white/20">
               {plan.timing}
             </span>
           </div>

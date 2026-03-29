@@ -13,14 +13,24 @@ export type DemoPhase =
   | 'history';
 
 // ── Historical Analysis ──
+export type ScanStatus = 'healthy' | 'warning' | 'critical';
+
 export interface HistoryScan {
   scan_id: string;
+  id: string; // alias for scan_id
+  date: string; // ISO date (alias for timestamp)
   timestamp: string; // ISO date
   overall_health_score: number; // 0–100
-  nitrogen_grade: number; // 0–100
-  phosphorus_grade: number; // 0–100
-  potassium_grade: number; // 0–100
-  leaf_image_snippet: string; // emoji placeholder or data URL
+  score: number; // alias for overall_health_score
+  nitrogen_grade: number; // 0–100 (aliased as n_grade)
+  n_grade: number;
+  phosphorus_grade: number; // 0–100 (aliased as p_grade)
+  p_grade: number;
+  potassium_grade: number; // 0–100 (aliased as k_grade)
+  k_grade: number;
+  status: ScanStatus;
+  image_url: string; // Unsplash leaf thumbnail
+  leaf_image_snippet: string; // emoji fallback
 }
 
 // ── NASA POWER API ──

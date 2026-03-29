@@ -29,6 +29,8 @@ export default function NutrientDial({ nutrient, confidence, level, color, delay
     return controls.stop;
   }, [confidence, delay]);
 
+  const isDeficient = level === 'deficient';
+
   return (
     <motion.div
       className="flex flex-col items-center gap-2"
@@ -43,14 +45,14 @@ export default function NutrientDial({ nutrient, confidence, level, color, delay
           <circle
             cx="40" cy="40" r="36"
             fill="none"
-            stroke="rgba(255,255,255,0.08)"
+            stroke="rgba(255,255,255,0.1)"
             strokeWidth="7"
           />
           {/* Progress ring */}
           <motion.circle
             cx="40" cy="40" r="36"
             fill="none"
-            stroke={color}
+            stroke={isDeficient ? 'var(--color-destructive)' : color}
             strokeWidth="7"
             strokeLinecap="round"
             strokeDasharray={circumference}
@@ -62,20 +64,22 @@ export default function NutrientDial({ nutrient, confidence, level, color, delay
         <div className="absolute inset-0 flex items-center justify-center">
           <span className="text-xl font-bold text-white tabular-nums">
             {displayValue}
-            <span className="text-xs font-normal text-white/50">%</span>
+            <span className="text-xs font-normal text-white/60">%</span>
           </span>
         </div>
       </div>
 
       {/* Nutrient label */}
       <div className="text-center">
-        <p className="text-xs font-semibold text-white/80">{capitalize(nutrient)}</p>
+        <p className="text-xs font-semibold text-white">{capitalize(nutrient)}</p>
         <p
-          className="text-[10px] font-medium mt-0.5 px-2 py-0.5 rounded-full"
-          style={{
-            color,
-            backgroundColor: `${color}15`,
-          }}
+          className={`text-[10px] font-medium mt-0.5 px-2 py-0.5 rounded-full ${
+            isDeficient
+              ? 'bg-red-500/20 text-red-400'
+              : level === 'adequate'
+              ? 'bg-amber-500/20 text-amber-400'
+              : 'bg-green-500/20 text-green-400'
+          }`}
         >
           {capitalize(level)}
         </p>

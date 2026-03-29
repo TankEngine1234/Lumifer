@@ -14,37 +14,41 @@ const severityConfig: Record<SeverityLevel, {
   color: string;
   icon: typeof AlertTriangle;
   description: string;
+  className: string;
 }> = {
   low: {
-    color: '#4ade80',
+    color: 'var(--color-severity-low)',
     icon: CheckCircle,
     description: 'Minor nutrient imbalance detected. Crop yield impact is minimal with timely correction.',
+    className: 'bg-green-500/20 text-green-400',
   },
   moderate: {
-    color: '#fb923c',
+    color: 'var(--color-severity-moderate)',
     icon: AlertTriangle,
-    description: 'Significant nutrient stress detected. Intervention recommended within 5 days to prevent yield loss.',
+    description: 'Significant nutrient stress detected. Intervention recommended to prevent yield loss.',
+    className: 'bg-amber-500/20 text-amber-400',
   },
   severe: {
-    color: '#f87171',
+    color: 'var(--color-severity-severe)',
     icon: XCircle,
-    description: 'Critical deficiency detected. Immediate action required — every day of delay reduces recovery potential.',
+    description: 'Critical deficiency detected. Immediate action required to reduce potential yield loss.',
+    className: 'bg-red-500/20 text-red-400',
   },
 };
 
 export default function SeverityCard({ severity, allOptimal, delay = 0 }: Props) {
   const config = allOptimal
-    ? { color: '#4ade80', icon: CheckCircle, description: 'No nutrient deficiency detected. Plant tissue appears healthy across all measured indices.' }
+    ? { color: 'var(--color-severity-low)', icon: CheckCircle, description: 'No nutrient deficiency detected. Plant tissue appears healthy.', className: 'bg-green-500/20 text-green-400' }
     : severityConfig[severity];
   const Icon = config.icon;
   const label = allOptimal ? 'Healthy' : capitalize(severity);
 
   return (
-    <GlassCard delay={delay} className="!p-3">
+    <GlassCard delay={delay} className="p-4">
       <div className="flex items-start gap-3">
         <motion.div
-          className="p-2 rounded-lg"
-          style={{ backgroundColor: `${config.color}15` }}
+          className="p-2 rounded-full"
+          style={{ backgroundColor: `${config.color.replace(')',', 0.1)').replace('rgb(','rgba(')}`}}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: delay + 0.2, type: 'spring', stiffness: 400, damping: 10 }}
@@ -56,13 +60,12 @@ export default function SeverityCard({ severity, allOptimal, delay = 0 }: Props)
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-semibold text-white">Severity Assessment</span>
             <span
-              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-              style={{ color: config.color, backgroundColor: `${config.color}20` }}
+              className={`text-xs font-bold px-2 py-0.5 rounded-full ${config.className}`}
             >
               {label}
             </span>
           </div>
-          <p className="text-xs text-white/65 leading-relaxed">{config.description}</p>
+          <p className="text-sm text-white/60 leading-relaxed">{config.description}</p>
         </div>
       </div>
     </GlassCard>

@@ -19,7 +19,6 @@ interface Props {
   zoom: number;
   zonesLoading?: boolean;
   selectedZone?: boolean;
-  onZoneSelect?: () => void;
   onScanLeaf?: () => void;
   region?: string;
 }
@@ -38,7 +37,6 @@ export default function FieldMapView({
   zoom,
   zonesLoading = false,
   selectedZone,
-  onZoneSelect,
   onScanLeaf,
   region,
 }: Props) {
@@ -283,7 +281,6 @@ export default function FieldMapView({
 
           if (matchedZone) {
             setActive(matchedZone);
-            onZoneSelect?.();
           } else {
             const [w, s, ea, n] = clickedPoly.bounds;
             const tempZone: FieldZone = {
@@ -302,15 +299,7 @@ export default function FieldMapView({
               lat: (s + n) / 2,
             };
             setActive(tempZone);
-            onZoneSelect?.();
           }
-
-          map.flyTo({
-            center: [point.lng, point.lat],
-            zoom: Math.max(map.getZoom(), 15.5),
-            duration: 600,
-            essential: true,
-          });
         }
       }
     };
@@ -334,7 +323,7 @@ export default function FieldMapView({
         map.off('mouseleave', layerId, leaveHandler);
       });
     };
-  }, [polygons, zones, mapLoaded, onZoneSelect]);
+  }, [polygons, zones, mapLoaded]);
 
   // ── Polygon visibility toggle ─────────────────────────────────────────────
   useEffect(() => {
