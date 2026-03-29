@@ -39,12 +39,14 @@ echo "  Output: $OUTPUT_DIR"
 python3 - <<'PYEOF'
 import sys, os
 import tensorflowjs as tfjs
+from tensorflow import keras
 
-input_dir  = "models/npk-mobilenet-keras"
+input_path = "models/npk-mobilenet-keras/model.keras"
 output_dir = "public/models/npk-mobilenet"
 
-tfjs.converters.convert_tf_saved_model(
-    input_dir,
+model = keras.models.load_model(input_path)
+tfjs.converters.save_keras_model(
+    model,
     output_dir,
     quantization_dtype_map={"float16": "*"},
 )

@@ -5,13 +5,24 @@ import { loadNPKModel, predict } from '../models/loadModel';
 import { fallbackPredict } from '../models/fallbackInference';
 import { yieldImpactByDeficiency } from '../data/nutrientThresholds';
 
+// Model output indices: [healthy, N-deficient, P-deficient, K-deficient]
+const HEALTHY_IDX = 0;
+const N_IDX = 1;
+const P_IDX = 2;
+const K_IDX = 3;
+
+/**
+ * Convert 4-class softmax to [N, P, K] deficiency confidences.
+ * High healthy probability → low deficiency across all.
+ */
+function softmaxToNPK(softmax: number[]): [number, number, number] {
+  // Deficiency confidence = class probability (softmax already normalized)
+  return [softmax[N_IDX], softmax[P_IDX], softmax[K_IDX]];
+}
+
 /**
  * Fuse model predictions with physics-based color index predictions.
- *
- * Strategy: color indices are the foundation (domain-invariant, interpretable),
- * model adjusts when it has strong signal. This avoids two failure modes:
- *   1. Model false-positives on healthy leaves (PlantVillage distribution shift)
- *   2. Model false-negatives on dead/brown tissue (out-of-distribution)
+ * Indices are physics-based (domain-invariant), model trained on real NPK data.
  */
 function fuseConfidences(
   modelConfs: [number, number, number],
@@ -20,24 +31,23 @@ function fuseConfidences(
   return modelConfs.map((modelC, i) => {
     const indexC = indexConfs[i];
 
-    // Both agree on deficiency → boost (high confidence)
-    if (modelC > 0.4 && indexC > 0.3) {
+    // Both agree on deficiency → boost
+    if (modelC > 0.3 && indexC > 0.3) {
       return Math.min((modelC + indexC) / 1.5, 1.0);
     }
 
     // Both agree on healthy → stay low
-    if (modelC < 0.2 && indexC < 0.2) {
+    if (modelC < 0.15 && indexC < 0.15) {
       return Math.min(modelC, indexC);
     }
 
-    // Disagreement → weighted average, favor indices (0.6) over model (0.4)
-    // because indices are physics-based and model has distribution shift issues
-    return indexC * 0.6 + modelC * 0.4;
+    // Disagreement → weighted average (50/50 now that model is trained on real data)
+    return indexC * 0.5 + modelC * 0.5;
   }) as [number, number, number];
 }
 
 export function useInference() {
-  const [model, setModel] = useState<tf.GraphModel | null>(null);
+  const [model, setModel] = useState<tf.LayersModel | null>(null);
   const [isModelReady, setIsModelReady] = useState(false);
   const [useFallback, setUseFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,14 +89,19 @@ export function useInference() {
           return fb;
         }
 
-        // Get raw model predictions
+        // Get raw model predictions (4-class softmax: healthy, N, P, K)
         const rawOutputs = await predict(model, tensor);
-        const [rawN, rawP, rawK] = rawOutputs;
-        console.log('[Lumifer] 🧠 Raw model sigmoid:', { N: rawN.toFixed(4), P: rawP.toFixed(4), K: rawK.toFixed(4) });
+        console.log('[Lumifer] 🧠 Raw model softmax:', {
+          healthy: rawOutputs[HEALTHY_IDX].toFixed(4),
+          N: rawOutputs[N_IDX].toFixed(4),
+          P: rawOutputs[P_IDX].toFixed(4),
+          K: rawOutputs[K_IDX].toFixed(4),
+        });
 
-        // Fuse model + index predictions
+        // Convert softmax to NPK confidences and fuse with index predictions
+        const modelNPK = softmaxToNPK(rawOutputs);
         [nConf, pConf, kConf] = fuseConfidences(
-          [rawN, rawP, rawK],
+          modelNPK,
           [fb.nitrogen.confidence, fb.phosphorus.confidence, fb.potassium.confidence],
         );
 

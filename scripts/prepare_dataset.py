@@ -98,9 +98,9 @@ def prepare_rice_npk():
 
     # Map folder names to our classes — try various naming patterns
     folder_mapping = {
-        'nitrogen_deficient': ['NitrogenDeficiency', 'Nitrogen', 'nitrogen', 'N', 'N_def', 'Nitrogen Deficiency'],
-        'phosphorus_deficient': ['PhosphorusDeficiency', 'Phosphorus', 'phosphorus', 'P', 'P_def', 'Phosphorus Deficiency'],
-        'potassium_deficient': ['PotassiumDeficiency', 'Potassium', 'potassium', 'K', 'K_def', 'Potassium Deficiency'],
+        'nitrogen_deficient': ['Nitrogen(N)', 'NitrogenDeficiency', 'Nitrogen', 'nitrogen', 'N', 'N_def', 'Nitrogen Deficiency'],
+        'phosphorus_deficient': ['Phosphorus(P)', 'PhosphorusDeficiency', 'Phosphorus', 'phosphorus', 'P', 'P_def', 'Phosphorus Deficiency'],
+        'potassium_deficient': ['Potassium(K)', 'PotassiumDeficiency', 'Potassium', 'potassium', 'K', 'K_def', 'Potassium Deficiency'],
     }
 
     # Find actual directory structure

@@ -53,7 +53,7 @@ Potassium regulates stomatal opening and ion transport. Deficiency causes the ol
 
 - **VARI (Visible Atmospherically Resistant Index)** — `(G − R) / (G + R − B)` (Gitelson et al., 2002): originally designed for satellite atmospheric correction, VARI is sensitive to canopy greenness. Values below 0.0 combined with HSV saturation < 0.30 indicate brown, desiccated tissue consistent with K deficiency.
 
-All three indices are computed per-pixel from the segmented leaf image in `src/pipeline/colorIndices.ts`.
+All three indices are computed per-pixel from the segmented leaf image in `src/pipeline/colorIndices.ts`. In addition to mean indices, the pipeline computes **per-pixel symptom fractions**: the percentage of leaf pixels classified as purple (anthocyanin/P), brown (necrosis/K), or yellow (chlorosis/N). This solves a critical limitation of mean-color analysis — a leaf that is 80% healthy green with 20% brown margin scorch has a healthy mean color but an elevated `brownFrac` that correctly identifies potassium deficiency.
 
 ### 2. NDVI and Sentinel-2
 
@@ -95,74 +95,123 @@ The spectral reconstruction is the core innovation that lets a $500 phone approx
 
 We chose MobileNetV2 over larger architectures for two reasons grounded in deployment constraints:
 
-1. **On-device inference**: The model must run in a browser via TensorFlow.js. MobileNetV2 at 224×224 input is ~14 MB unquantized, compressible to ~3–5 MB with uint8 quantization — well within the 15 MB PWA cache budget. ResNet-50 or EfficientNet-B4 would be 4–8x larger.
+1. **On-device inference**: The model must run in a browser via TensorFlow.js. MobileNetV2 at 224×224 input is ~14 MB unquantized, compressible to ~5 MB with float16 quantization — well within the 15 MB PWA cache budget. ResNet-50 or EfficientNet-B4 would be 4–8x larger.
 
 2. **Depthwise separable convolutions**: MobileNetV2's architecture separates spatial filtering from channel mixing, reducing FLOPs by ~8–9x vs a standard conv network of equivalent depth (Howard et al., 2017). This translates directly to inference latency on a CPU-only mobile browser.
 
 **Architecture:**
 ```
-MobileNetV2 base (ImageNet pretrained, frozen)
+MobileNetV2 base (ImageNet pretrained)
   → GlobalAveragePooling2D
-  → Dense(128, ReLU)
+  → Dense(256, ReLU)
+  → Dropout(0.5)
+  → Dense(64, ReLU)
   → Dropout(0.3)
-  → Dense(3, Sigmoid)        ← outputs [N_confidence, P_confidence, K_confidence]
+  → Dense(4, Softmax)        ← outputs [healthy, N_deficient, P_deficient, K_deficient]
 ```
 
-The output layer uses sigmoid (not softmax) because NPK deficiency is **multi-label**: a plant can simultaneously show nitrogen yellowing in older leaves and potassium scorch on margins. Softmax would force a single-winner classification, losing co-occurrence information.
+The output layer uses **softmax over 4 classes** (healthy, nitrogen-deficient, phosphorus-deficient, potassium-deficient). The wider classification head (256 → 64) with stronger dropout (0.5/0.3) provides more capacity for feature discrimination while preventing overfitting on the relatively small training dataset. At inference time, the three deficiency class probabilities are extracted as N/P/K confidence scores, and the healthy class probability provides a natural "all clear" signal.
 
-**Training data — PlantVillage:**
-The model is trained on a curated subset of the PlantVillage dataset (~54,000 labeled leaf images from Penn State; Hughes & Salathé, 2015), the largest publicly available plant pathology dataset. We map PlantVillage's disease taxonomy to NPK deficiency categories based on documented visual symptom correspondence:
+**Training data — Rice NPK Deficiency Dataset:**
+The model is trained on the **Rice NPK Deficiency dataset** (Kaggle: `guy007/nutrientdeficiencysymptomsinrice`) — a curated collection of real nutrient deficiency images from controlled rice plant experiments with verified NPK labels. This replaced an earlier approach using PlantVillage disease proxies, which suffered from domain mismatch (disease symptoms ≠ nutrient deficiency symptoms).
 
-| PlantVillage label | NPK mapping | Physiological basis |
-|----|----|----|
-| Corn — Northern Leaf Blight / Chlorosis | Nitrogen deficient | Chlorophyll degradation → yellowing |
-| Corn — Purple leaf sheath | Phosphorus deficient | Anthocyanin accumulation → purpling |
-| Corn — Leaf scorch | Potassium deficient | Necrosis at margins → browning |
-| Any — Healthy | All adequate | Full nutrient status |
+| Dataset class | Image count | Source |
+|---|---|---|
+| Nitrogen deficient (`Nitrogen(N)/`) | 440 | Rice NPK Deficiency — controlled N-depletion experiments |
+| Phosphorus deficient (`Phosphorus(P)/`) | 333 | Rice NPK Deficiency — controlled P-depletion experiments |
+| Potassium deficient (`Potassium(K)/`) | 383 | Rice NPK Deficiency — controlled K-depletion experiments |
+| Healthy baseline | 500 | PlantVillage healthy rice leaf images (Hughes & Salathé, 2015) |
+| **Total** | **1,656** | |
 
-**Training configuration:**
-- 20 epochs, early stopping (patience=5, restore best weights)
-- Adam optimizer, lr=1e-4, binary cross-entropy loss
-- 85/15 train/validation split with shuffle
-- Augmentation: RandomFlip, RandomRotation(±15°), RandomZoom(±10%), RandomBrightness(±10%), RandomContrast(±10%)
-- ReduceLROnPlateau (factor=0.5, patience=3)
+**Two-phase training pipeline:**
+
+*Phase 1 — Classification head only (backbone frozen):*
+- 20 epochs, early stopping (patience=6, restore best weights)
+- Adam optimizer, lr=1e-3, sparse categorical cross-entropy loss
+- Class weights computed from training set distribution to handle imbalance
+- Augmentation: RandomFlip (horizontal + vertical), RandomRotation(±45°), RandomZoom(±20%), RandomContrast(±15%), RandomBrightness(±10%), RandomTranslation(±10%)
+- ReduceLROnPlateau (factor=0.5, patience=3, min_lr=1e-6)
+
+*Phase 2 — Fine-tune last 30 MobileNetV2 layers:*
+- 15 epochs, early stopping (patience=5, restore best weights)
+- Adam optimizer, lr=1e-5
+- ReduceLROnPlateau (factor=0.5, patience=2, min_lr=1e-7)
+- Same class weights and augmentation as Phase 1
+
+**Validation performance (85/15 split, 249 validation images):**
+
+| Class | Precision | Recall | F1 |
+|---|---|---|---|
+| Healthy | 77.2% | 92.4% | 84.1% |
+| Nitrogen deficient | 67.2% | 60.0% | 63.4% |
+| Phosphorus deficient | 57.4% | 64.8% | 60.9% |
+| Potassium deficient | 60.8% | 48.4% | 53.9% |
+| **Overall accuracy** | | | **66.7%** |
+
+The standalone model accuracy is moderate due to the small dataset size (1,656 images). This is by design — the model serves as one signal in a **fusion pipeline** that combines it 50/50 with physics-based color index predictions (Section 6), which substantially improves real-world accuracy.
 
 **Deployment:**
-`scripts/train_model.py` → Keras SavedModel → `scripts/export_tfjs.sh` → TF.js GraphModel with uint8 quantization → `public/models/npk-mobilenet/` (3–5 MB, served as PWA static assets, cached for offline use).
+`scripts/train_model.py` → Keras `.keras` model (inference-only, no augmentation layers) → `scripts/export_tfjs.sh` → TF.js LayersModel with float16 quantization → `public/models/npk-mobilenet/` (~5 MB, served as PWA static assets, cached for offline use).
 
 ### 5. Leaf Segmentation Pipeline
 
 Before any index computation or model inference, we must isolate the leaf from the background (soil, hands, pot edges). We use OpenCV.js loaded via CDN for this.
 
-The segmentation pipeline in `src/pipeline/segmentation.ts`:
+The segmentation pipeline in `src/pipeline/segmentation.ts` uses a **multi-range vegetation mask** that captures healthy, stressed, and dead leaf tissue — critical for NPK deficiency detection where the diagnostic tissue may be yellow, brown, or purple rather than green:
 
 ```
 RGB frame → HSV color space
-         → inRange([H:25–95, S:40–255, V:40–255])   ← green vegetation mask
-         → morphologyEx(MORPH_CLOSE, 5×5 ellipse)    ← fill gaps
-         → findContours → largest contour by area     ← isolate main leaf
-         → drawContours(FILLED) → bitwise_and         ← masked leaf image
+         → Green mask:  inRange([H:25–95,  S:30+, V:30+])   ← healthy vegetation
+         → Yellow mask: inRange([H:15–35,  S:40+, V:60+])   ← chlorotic tissue (N deficiency)
+         → Brown mask:  inRange([H:5–30,   S:15+, V:30+])   ← necrotic tissue (K deficiency)
+         → Combine: bitwise_or(green, yellow, brown)          ← full vegetation mask
+         → Laplacian focus mask (Otsu threshold + dilation)   ← sharp in-focus tissue only
+         → bitwise_and(vegetation, focus)                     ← combined mask
+         → morphologyEx(MORPH_CLOSE, 11×11) + MORPH_OPEN(5×5) ← cleanup
+         → findContours → largest contour by area
+         → drawContours(FILLED) → bitwise_and                ← masked leaf image
 ```
 
-The HSV thresholds `H: 25–95` span yellow-green through green-blue, capturing all live leaf tissue including slightly yellowed (N-deficient) leaves while excluding brown soil and skin tones. Morphological closing fills the small holes that appear at leaf venation boundaries.
+**Multi-range HSV thresholds:** A green-only mask (H: 25–95) would miss the diagnostic tissue entirely — a brown K-deficient leaf would be treated as background. The three overlapping ranges capture: green vegetation (H 25–95, S 30+), yellow/chlorotic tissue (H 15–35, S 40+, V 60+), and brown/necrotic tissue (H 5–30, S 15+, V 30+). Brown tissue uses a wide saturation range (S 15+) because dead leaves can be very desaturated.
+
+**Laplacian focus filtering:** The Laplacian operator detects edges (high-frequency detail) to build a sharpness map, which is Gaussian-blurred and Otsu-thresholded to create a focus mask. This separates the sharp in-focus leaf from blurred backgrounds — preventing soil or distant vegetation from contaminating the analysis. The focus mask is dilated (21×21 ellipse kernel) to tolerate leaf edges that are slightly softer than the center.
+
+**Fallback:** If the largest contour exceeds 85% of the image area (suggesting the entire frame is leaf), the pipeline falls back to a center 60% crop rather than using the full image, which may include edge artifacts.
 
 We take the **largest contour** rather than all contours because in a real field capture the leaf will be the dominant object in frame. This is a deliberate design constraint: the capture UI instructs the user to fill the frame with one leaf.
 
 OpenCV.js (~8 MB) is loaded via CDN rather than bundled to avoid nearly doubling the application bundle size. If it has not loaded when analysis begins, the pipeline falls back to treating the entire image as the leaf region.
 
-### 6. Heuristic Fallback Inference
+### 6. Color Index Inference and Model Fusion
 
-If the TF.js model file fails to load (corrupted asset, first-load cache miss, WebGL unavailable), `src/models/fallbackInference.ts` provides a pure-computation inference path using the vegetation index thresholds directly.
+The inference pipeline uses a **dual-signal fusion** approach: physics-based color index predictions are computed from vegetation indices and per-pixel symptom fractions, then fused 50/50 with the MobileNetV2 model output. This compensates for the model's moderate standalone accuracy while grounding predictions in interpretable agronomic signals.
 
-The fallback logic implements the published agronomic correlations explicitly:
+**Physics-based index predictions** (`src/models/fallbackInference.ts`):
+
+The index engine uses both traditional vegetation indices (ExG, NGRDI, VARI) and **per-pixel symptom fractions** — the percentage of leaf pixels classified as purple, brown, or yellow by the color analysis pipeline (`src/pipeline/colorIndices.ts`). Per-pixel fractions solve the critical problem of localized symptoms: a leaf that is 80% green but has 20% brown margin scorch has a healthy *mean* color but an elevated `brownFrac` that correctly triggers K-deficiency detection.
 
 ```
-N confidence  = f(ExG < 0.15, NGRDI < −0.10, yellow hue H:40–65°)
-P confidence  = f(blue ratio > 0.38, purple/red hue H:280–340°)
-K confidence  = f(VARI < 0.0, saturation < 0.30, brown hue H:20–50°)
+N confidence = f(ExG < 0.15, NGRDI < −0.05, yellowFrac > 0.10, brownFrac > 0.30)
+P confidence = f(purpleFrac > 0.08, blue ratio > 0.35, purple hue H:260–360° or H:0–20°)
+K confidence = f(brownFrac > 0.10, VARI < 0.05, saturation < 0.45)
 ```
 
-Each condition contributes a weighted partial score summing to a [0, 1] confidence. The thresholds come from Woebbecke et al. (1995), Meyer & Neto (2008), and Gitelson et al. (2002). This is not a fallback in accuracy — the vegetation indices encode the same spectral information the model was trained on, just without learned feature weighting.
+Per-pixel symptom detection thresholds in `colorIndices.ts`:
+- **Purple** (anthocyanin, P indicator): `B > G && (R + B) > G × 1.8`
+- **Brown** (necrosis, K indicator): `R > G && R > B && green_scaled < 0.42`
+- **Yellow** (chlorosis, N indicator): `R > B × 1.3 && G > B × 1.3 && |R − G| < 40 && green_scaled < 0.45`
+
+**Fusion strategy** (`src/hooks/useInference.ts`):
+
+The MobileNetV2 model outputs a 4-class softmax `[healthy, N_def, P_def, K_def]`. The three deficiency probabilities are extracted and fused with the index-based confidences:
+
+| Condition | Fusion rule |
+|---|---|
+| Both agree deficient (model > 0.3, index > 0.3) | Boost: `(model + index) / 1.5` |
+| Both agree healthy (model < 0.15, index < 0.15) | Suppress: `min(model, index)` |
+| Disagreement | Weighted average: `index × 0.5 + model × 0.5` |
+
+If the TF.js model fails to load (corrupted asset, first-load cache miss, WebGL unavailable), the index-based predictions are used alone — this is not a degraded mode, as the index engine encodes the same spectral information the model was trained on, just without learned feature weighting.
 
 ### 7. NPK Diagnostic Thresholds
 
@@ -244,7 +293,7 @@ App.tsx  (phase state machine)
   ├─ splash          Logo animation
   ├─ fieldmap        FieldMapView — SVG NDVI satellite render + ZonePins + ZoneCard
   ├─ zone            FieldMapView (selectedZone=true) — ZoneCard already visible
-  ├─ capture         CameraView — useCamera hook → live viewfinder → CaptureButton
+  ├─ capture         CameraView — useCamera hook → live viewfinder → CaptureButton / Upload
   ├─ captured        AnalysisOverlay — freeze frame, begin pipeline
   ├─ analyzing       AnalysisOverlay — OpenCV segmentation → colorIndices → TF.js inference
   ├─ heatmap         SpectralHeatmap — scan-line reveal of false-color overlay
@@ -263,33 +312,42 @@ App.tsx  (phase state machine)
 ## Image Processing Pipeline (detailed)
 
 ```
-captureFrame()                       useCamera.ts
+captureFrame() / uploadImage()       useCamera.ts / CameraView.tsx
     │  ImageData (1280×720)
     ▼
 segmentLeaf()                        pipeline/segmentation.ts
-    │  OpenCV HSV threshold + contour
+    │  OpenCV: multi-range HSV (green+yellow+brown) + Laplacian focus
     │  Output: { segmentedImageData, leafMask, leafBounds }
     ▼
 computeColorIndices()                pipeline/colorIndices.ts
-    │  Per-pixel ExG, NGRDI, VARI (masked to leaf only)
+    │  Per-pixel ExG, NGRDI, VARI + symptom fractions
+    │  (purpleFrac, brownFrac, yellowFrac)
     │  Output: { indices, colorData }
     ▼
 preprocessForModel()                 pipeline/preprocess.ts
-    │  Resize to 224×224, normalize [0,1], tf.tensor4d [1,224,224,3]
+    │  Resize to 224×224, normalize [-1,1], tf.tensor4d [1,224,224,3]
     ▼
-model.predict(tensor)                hooks/useInference.ts
-    │  MobileNetV2 → [N_conf, P_conf, K_conf] sigmoid outputs
-    │  (falls back to fallbackPredict() if model unavailable)
-    ▼
+┌─────────────────────┐  ┌──────────────────────────┐
+│ model.predict()     │  │ fallbackPredict()        │
+│ MobileNetV2 softmax │  │ Index + symptom fraction │
+│ [healthy,N,P,K]     │  │ [N_conf, P_conf, K_conf] │
+└────────┬────────────┘  └────────┬─────────────────┘
+         │                        │
+         └───────┬────────────────┘
+                 ▼
+         fuseConfidences()               hooks/useInference.ts
+             │  50/50 weighted fusion
+             │  Output: final [N, P, K] confidences
+             ▼
 renderHeatmap()                      pipeline/heatmapRenderer.ts
     │  Per-pixel ExG index → color ramp (red=0.0 → blue=1.0)
     │  Scan-line reveal animation over 2.5s
     ▼
 ResultsView                          components/results/
     NutrientDial × 3 (animated SVG rings, 0→value over 2s)
-    SeverityCard
-    ActionPlanCard × 2
-    YieldImpactCard (animated counter)
+    SeverityCard (shows "Healthy" when all optimal)
+    ActionPlanCard × 2 (hidden when all optimal)
+    YieldImpactCard (animated counter, hidden when all optimal)
 ```
 
 ---
@@ -303,9 +361,10 @@ ResultsView                          components/results/
 | **Framer Motion** | Spring physics (`stiffness:260/damping:20`) matches Apple's UIKit spring parameters, producing the "alive" feel of iOS transitions rather than dead ease-in-out curves |
 | **TensorFlow.js** | Only mature JS ML framework with WebGL acceleration and SavedModel import from Keras |
 | **OpenCV.js via CDN** | ~8 MB — too large to bundle; CDN load is async before first use, keeping initial JS bundle under 500 kB |
-| **MobileNetV2** | 3–5 MB quantized, runs in <300ms on mobile CPU/WebGL — fits demo latency budget |
+| **MobileNetV2** | ~5 MB float16 quantized, runs in <300ms on mobile CPU/WebGL — fits demo latency budget |
 | **vite-plugin-pwa + Workbox** | Pre-caches TF.js model shards and all app assets for fully offline operation after first load |
-| **PlantVillage** | Only freely available large-scale labeled leaf dataset (~54K images); Hughes & Salathé (2015) |
+| **Rice NPK Deficiency Dataset** | Real nutrient deficiency images with verified NPK labels from controlled experiments (Kaggle: guy007) |
+| **PlantVillage** | Healthy baseline images (~500); Hughes & Salathé (2015) |
 
 ---
 
@@ -330,16 +389,20 @@ npm run preview      # Serve dist/ locally (tests PWA/service worker)
 ```bash
 pip install tensorflow pillow numpy kagglehub tensorflowjs
 
-# Download and curate PlantVillage subset
+# Download Rice NPK Deficiency dataset (Kaggle) + PlantVillage healthy baseline
+# Outputs to data/training_v2/ (440 N + 333 P + 383 K + 500 healthy = 1,656 images)
 python scripts/prepare_dataset.py
 
-# Train MobileNetV2 (~20 epochs, ~2h on CPU, ~20min on GPU)
+# Two-phase MobileNetV2 training: frozen backbone (20 epochs) + fine-tune (15 epochs)
+# Outputs inference model to models/npk-mobilenet-keras/model.keras
 python scripts/train_model.py
 
-# Convert to TF.js GraphModel with uint8 quantization (~3–5 MB)
+# Convert to TF.js LayersModel with float16 quantization (~5 MB)
 bash scripts/export_tfjs.sh
 # Output: public/models/npk-mobilenet/model.json + weight shards
 ```
+
+**Note:** The `prepare_dataset.py` script requires a Kaggle account for `kagglehub` downloads. Alternatively, download the dataset manually from [kaggle.com/datasets/guy007/nutrientdeficiencysymptomsinrice](https://www.kaggle.com/datasets/guy007/nutrientdeficiencysymptomsinrice) and extract to `data/rice-npk/`.
 
 ---
 
@@ -365,4 +428,5 @@ bash scripts/export_tfjs.sh
 - Zhao, C., et al. (2017). Temperature increase reduces global yields of major crops in four independent estimates. *Nature Climate Change*, 7(9), 814–821.
 - Lambers, H., et al. (2006). Root architecture and plant nutrition. *Annual Review of Plant Biology*, 57, 595–615.
 - Marschner, H. (1995). *Mineral Nutrition of Higher Plants* (2nd ed.). Academic Press.
+- Guy, R. (2023). Nutrient Deficiency Symptoms in Rice. *Kaggle*. https://www.kaggle.com/datasets/guy007/nutrientdeficiencysymptomsinrice
 - NASA POWER Project. Agroclimatology Community API. *NASA Langley Research Center*. https://power.larc.nasa.gov
