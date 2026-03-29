@@ -48,7 +48,7 @@ export default function ResultsView({ result, onNASAContext }: Props) {
         </p>
       </motion.div>
 
-      <div className="page-content flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="page-content flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
         <div className="app-section">
           <motion.div variants={staggerItem} className="app-card p-5">
             <p className="section-label mb-4">Nutrient Confidence</p>
@@ -99,7 +99,7 @@ export default function ResultsView({ result, onNASAContext }: Props) {
       </div>
 
       {onNASAContext && (
-        <div className="page-content pt-0 pb-6">
+        <div className="page-content pt-0 pb-6" style={{ maxWidth: '100%' }}>
           <motion.button
             variants={staggerItem}
             className="app-button-primary app-button-cta"

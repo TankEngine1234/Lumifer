@@ -462,28 +462,35 @@ export default function FieldMapView({
         transition={{ delay: 0.3 }}
       >
         <div
-          className="app-card mx-auto w-full max-w-[480px] p-5"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}
+          className="mx-auto w-full max-w-[480px] px-5 py-3"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+            background: 'rgba(5,8,5,0.72)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderRadius: 16,
+            border: '1px solid rgba(255,255,255,0.10)',
+          }}
         >
-          <div style={{ flex: 1, textAlign: 'center' }}>
+          <div style={{ flex: 1 }}>
             <p
-              className="section-label mb-1"
-              style={{ fontSize: 18, fontWeight: 800, color: '#6B6B6B', letterSpacing: '0.06em' }}
+              className="section-label mb-0.5"
+              style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.10em' }}
             >
-              Imperial County, California
+              IMPERIAL COUNTY, CALIFORNIA
             </p>
-            <h2 className="text-[24px] font-extrabold leading-tight" style={{ color: '#FFFFFF' }}>Field Overview</h2>
+            <h2 className="text-[18px] font-extrabold leading-tight" style={{ color: '#FFFFFF' }}>Field Overview</h2>
           </div>
 
           {alertCount > 0 && (
             <motion.div
-              className="mt-1 flex items-center gap-2 rounded-full px-4 py-2"
-              style={{ background: 'rgba(45,90,39,0.18)', border: '1px solid rgba(255,255,255,0.08)' }}
+              className="flex items-center gap-2 rounded-full px-3 py-1.5"
+              style={{ background: 'rgba(45,90,39,0.35)', border: '1px solid rgba(45,90,39,0.5)' }}
               animate={{ opacity: [1, 0.72, 1] }}
               transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <span className="h-2 w-2 rounded-full" style={{ background: '#FFFFFF' }} />
-              <span className="whitespace-nowrap text-sm font-bold" style={{ color: '#FFFFFF' }}>
+              <span className="h-2 w-2 rounded-full" style={{ background: '#6FCF6F' }} />
+              <span className="whitespace-nowrap text-xs font-bold" style={{ color: '#FFFFFF' }}>
                 {alertCount} Alert{alertCount !== 1 ? 's' : ''}
               </span>
             </motion.div>
@@ -542,43 +549,41 @@ export default function FieldMapView({
 
       {/* Legend - bottom left, matching GEE screenshot */}
       <motion.div
-        className="absolute bottom-28 left-4 z-20 w-[340px] max-w-[calc(100vw-32px)]"
+        className="absolute bottom-4 left-4 z-20 w-[300px] max-w-[calc(100vw-32px)]"
         initial={{ opacity: 0 }}
         animate={{ opacity: mapLoaded ? 1 : 0 }}
         transition={{ delay: 0.8 }}
       >
         <div
-          className="app-card px-5 py-5"
+          className="px-4 py-3"
+          style={{
+            background: 'rgba(5,8,5,0.76)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderRadius: 14,
+            border: '1px solid rgba(255,255,255,0.10)',
+          }}
         >
-          <p className="text-[22px] font-extrabold mb-2" style={{ color: '#111111', textAlign: 'center' }}>Field Health (NDVI)</p>
-          <p className="text-sm font-semibold mb-1" style={{ color: '#444444', textAlign: 'center' }}>Imperial Valley CA - Holtville Cropland</p>
-          <p className="text-sm font-semibold mb-4" style={{ color: '#444444', textAlign: 'center' }}>USDA CDL + spectral mask applied</p>
+          <p className="text-sm font-extrabold mb-0.5" style={{ color: '#FFFFFF' }}>Field Health (NDVI)</p>
+          <p className="text-[11px] font-medium mb-3" style={{ color: 'rgba(255,255,255,0.55)' }}>Imperial Valley CA · USDA CDL + spectral mask</p>
 
-          <div className="flex flex-col gap-2.5">
-            <div className="flex items-center gap-2.5">
-              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#00CC00' }} />
-              <span className="text-base font-semibold" style={{ color: '#111111' }}>GREEN = Healthy (NDVI &gt; 0.55)</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#FFFF00' }} />
-              <span className="text-base font-semibold" style={{ color: '#111111' }}>YELLOW = Moderate (NDVI 0.35-0.55)</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#FF0000' }} />
-              <span className="text-base font-semibold" style={{ color: '#111111' }}>RED = Critical (NDVI &lt; 0.35)</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#FF8C00' }} />
-              <span className="text-base font-semibold" style={{ color: '#111111' }}>ORANGE outline = Yellow priority fields</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#000000' }} />
-              <span className="text-base font-semibold" style={{ color: '#111111' }}>BLACK outline = Red priority fields</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#808080' }} />
-              <span className="text-base font-semibold" style={{ color: '#111111' }}>GRAY = Roads/buildings/plowed (CDL masked)</span>
-            </div>
+          <div className="flex flex-col gap-1.5">
+            {[
+              { color: '#00CC00', label: 'Healthy (NDVI > 0.55)' },
+              { color: '#FFFF00', label: 'Moderate (NDVI 0.35–0.55)' },
+              { color: '#FF0000', label: 'Critical (NDVI < 0.35)' },
+              { color: '#FF8C00', label: 'Orange outline = Yellow priority' },
+              { color: '#000000', label: 'Black outline = Red priority', border: 'rgba(255,255,255,0.3)' },
+              { color: '#808080', label: 'Gray = CDL masked (roads/plowed)' },
+            ].map(({ color, label, border }) => (
+              <div key={label} className="flex items-center gap-2">
+                <span
+                  className="h-3 w-3 shrink-0 rounded-sm"
+                  style={{ background: color, border: border ? `1px solid ${border}` : undefined }}
+                />
+                <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.85)' }}>{label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </motion.div>

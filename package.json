@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@tensorflow/tfjs": "^4.22.0",
     "@types/mapbox-gl": "^3.4.1",

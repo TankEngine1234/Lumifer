@@ -19,7 +19,7 @@ export default function ZoneCard({ zone, onScanLeaf }: Props) {
 
   return (
     <motion.div
-      className="absolute bottom-20 left-4 right-4 z-40"
+      className="absolute bottom-[260px] left-4 right-4 z-40"
       initial={{ opacity: 0, y: 32 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
