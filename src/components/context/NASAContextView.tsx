@@ -14,17 +14,18 @@ interface Props {
 }
 
 const pillColors = {
-  heat:     { bg: 'rgba(248,113,113,0.15)',  border: 'rgba(248,113,113,0.45)',  text: '#fca5a5' },
-  drought:  { bg: 'rgba(251,146,60,0.15)',   border: 'rgba(251,146,60,0.45)',   text: '#fdba74' },
-  humidity: { bg: 'rgba(96,165,250,0.15)',   border: 'rgba(96,165,250,0.45)',   text: '#93c5fd' },
+  heat: { bg: 'rgba(17,17,17,0.08)', border: 'rgba(17,17,17,0.12)', text: '#111111' },
+  drought: { bg: 'rgba(45,90,39,0.10)', border: 'rgba(45,90,39,0.16)', text: '#2D5A27' },
+  humidity: { bg: 'rgba(74,122,68,0.10)', border: 'rgba(74,122,68,0.16)', text: '#4A7A44' },
 };
 
 function StressPill({ label, type }: { label: string; type: keyof typeof pillColors }) {
   const c = pillColors[type];
   return (
-    <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{
-      backgroundColor: c.bg, border: `1px solid ${c.border}`, color: c.text,
-    }}>
+    <span
+      className="text-sm font-bold px-4 py-2 rounded-full"
+      style={{ backgroundColor: c.bg, border: `1px solid ${c.border}`, color: c.text }}
+    >
       {label}
     </span>
   );
@@ -32,8 +33,8 @@ function StressPill({ label, type }: { label: string; type: keyof typeof pillCol
 
 function NASALogo() {
   return (
-    <svg width="20" height="20" viewBox="0 0 100 100" className="shrink-0">
-      <circle cx="50" cy="50" r="48" fill="#0b3d91" />
+    <svg width="22" height="22" viewBox="0 0 100 100" className="shrink-0">
+      <circle cx="50" cy="50" r="48" fill="#2D5A27" />
       <ellipse cx="50" cy="50" rx="30" ry="12" fill="none" stroke="white" strokeWidth="5" transform="rotate(-30 50 50)" />
       <text x="50" y="57" fontSize="22" fontWeight="bold" fill="white" textAnchor="middle" fontFamily="sans-serif">NASA</text>
     </svg>
@@ -47,52 +48,49 @@ export default function NASAContextView({ npkResult, climate, onComplete }: Prop
 
   return (
     <motion.div
-      className="absolute inset-0 flex flex-col"
+      className="app-page"
       variants={staggerContainer}
       initial="hidden"
       animate="visible"
     >
-      {/* ── Fixed header ── */}
-      <motion.div variants={staggerItem} className="text-center pt-12 pb-3 shrink-0 px-4">
-        <p className="text-[9px] font-bold tracking-[0.15em] text-white/35 uppercase mb-0.5">
-          Stage 3 · Why is it stressed?
+      <motion.div variants={staggerItem} className="page-header">
+        <p className="page-header-kicker">Stage 3 • Why is it stressed?</p>
+        <h2 className="page-header-title">Climate Context</h2>
+        <p className="page-header-copy" style={{ marginTop: 8 }}>
+          NASA POWER • 90-day growing season analysis
         </p>
-        <h2 className="text-lg font-semibold text-white">Climate Context</h2>
-        <p className="text-xs text-white/40 mt-0.5">NASA POWER · 90-day growing season analysis</p>
       </motion.div>
 
-      {/* ── Loading ── */}
       {isLoading && (
-        <motion.div variants={staggerItem} className="flex-1 flex items-center justify-center px-4">
-          <GlassCard>
-            <div className="flex items-center gap-3 px-2 py-1">
-              <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
+        <motion.div variants={staggerItem} className="page-content flex-1 flex items-center">
+          <GlassCard className="w-full !p-5">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#2D5A27' }} />
               <div>
-                <p className="text-sm font-semibold text-white">Fetching NASA data…</p>
-                <p className="text-xs text-white/40 mt-0.5">power.larc.nasa.gov · AG community</p>
+                <p className="app-label">Fetching NASA data...</p>
+                <p className="app-text">power.larc.nasa.gov • AG community</p>
               </div>
             </div>
           </GlassCard>
         </motion.div>
       )}
 
-      {/* ── Error / Offline ── */}
       {isError && (
-        <motion.div variants={staggerItem} className="flex-1 flex items-center justify-center px-4">
-          <GlassCard>
-            <div className="flex items-start gap-3 px-1">
+        <motion.div variants={staggerItem} className="page-content flex-1 flex items-center">
+          <GlassCard className="w-full !p-5">
+            <div className="flex items-start gap-3">
               {climate.status === 'offline'
-                ? <WifiOff className="w-5 h-5 text-white/40 shrink-0 mt-0.5" />
-                : <AlertCircle className="w-5 h-5 text-yellow-400/70 shrink-0 mt-0.5" />
+                ? <WifiOff className="w-5 h-5 shrink-0 mt-0.5" style={{ color: '#2D5A27' }} />
+                : <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: '#111111' }} />
               }
               <div>
-                <p className="text-sm font-semibold text-white">
+                <p className="app-label">
                   {climate.status === 'offline' ? 'Offline' : 'Data unavailable'}
                 </p>
-                <p className="text-xs text-white/45 mt-0.5 leading-relaxed">
+                <p className="app-text" style={{ marginTop: 8 }}>
                   {climate.status === 'offline'
                     ? 'No network connection. Climate context requires internet for first load.'
-                    : 'NASA POWER API unavailable. Leaf diagnosis above remains valid — climate correlation not shown.'}
+                    : 'NASA POWER API unavailable. The leaf diagnosis above remains valid, but climate correlation is not shown.'}
                 </p>
               </div>
             </div>
@@ -100,55 +98,48 @@ export default function NASAContextView({ npkResult, climate, onComplete }: Prop
         </motion.div>
       )}
 
-      {/* ── Success: scrollable content ── */}
       {isSuccess && (
         <motion.div
           variants={staggerItem}
-          className="flex-1 overflow-y-auto px-4 pb-24"
+          className="page-content flex-1 overflow-y-auto pb-24"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          {/* Climate chart — dominant element */}
-          <div className="mb-3">
+          <div className="app-section">
             <ClimateChart climate={climate} />
-          </div>
 
-          {/* Stress summary pills */}
-          <div className="flex flex-wrap gap-2 mb-3">
-            <StressPill label={`${climate.heatDays}d heat >34°C`} type="heat" />
-            <StressPill label={`${climate.droughtGap}d dry streak`} type="drought" />
-            <StressPill label={`${climate.lowHumidityDays}d low RH`} type="humidity" />
-          </div>
+            <div className="flex flex-wrap gap-2">
+              <StressPill label={`${climate.heatDays}d heat >34°C`} type="heat" />
+              <StressPill label={`${climate.droughtGap}d dry streak`} type="drought" />
+              <StressPill label={`${climate.lowHumidityDays}d low RH`} type="humidity" />
+            </div>
 
-          {/* Narrative card */}
-          <div className="mb-3">
             <StressNarrativeCard npkResult={npkResult} climate={climate} delay={0.3} />
-          </div>
 
-          {/* NASA attribution */}
-          <div className="glass px-3 py-2 flex items-center gap-2.5">
-            <NASALogo />
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-white/70">NASA POWER · data.nasa.gov</p>
-              <p className="text-[9px] text-white/35 truncate">
-                Agroclimatology Community · 30.57°N 96.30°W · 90-day daily
-              </p>
+            <div className="glass px-4 py-4 flex items-center gap-3">
+              <NASALogo />
+              <div className="min-w-0">
+                <p className="section-label">NASA POWER • data.nasa.gov</p>
+                <p className="app-text">
+                  Agroclimatology Community • 30.57°N 96.30°W • 90-day daily
+                </p>
+              </div>
             </div>
           </div>
         </motion.div>
       )}
 
-      {/* ── Restart button — fixed at bottom, above content ── */}
-      <motion.button
-        className="absolute bottom-6 left-4 right-4 py-3 rounded-2xl text-white/60 text-sm font-medium glass z-10"
-        style={{ border: '1px solid rgba(255,255,255,0.08)' }}
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...springDefault, delay: 1.2 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={onComplete}
-      >
-        Restart Demo
-      </motion.button>
+      <div className="page-content pt-0 pb-6">
+        <motion.button
+          className="app-button-primary app-button-cta"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...springDefault, delay: 1.2 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onComplete}
+        >
+          Restart Demo
+        </motion.button>
+      </div>
     </motion.div>
   );
 }

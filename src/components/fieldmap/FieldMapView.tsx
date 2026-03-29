@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { blurFade } from '../../animations/variants';
 import { springDefault } from '../../animations/springs';
 import ZoneCard from './ZoneCard';
+import LeafAnalysisPanel from '../analysis/LeafAnalysisPanel';
 import type { FieldZone, FieldPolygon } from '../../types';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
 
-// Farm AOI — Imperial Valley, Holtville
+// Farm AOI - Imperial Valley, Holtville
 const FARM_BOUNDS = { west: -115.39, south: 32.84, east: -115.33, north: 32.89 };
 
 interface Props {
@@ -19,16 +20,28 @@ interface Props {
   zoom: number;
   zonesLoading?: boolean;
   selectedZone?: boolean;
+  initialZone?: FieldZone | null;
+  onZoneSelect?: (zone?: FieldZone) => void;
   onScanLeaf?: () => void;
   region?: string;
 }
 
-// GEE screenshot colors — exact match
-const GEE_FILL: Record<string, string> = {
-  severe:   '#FF0000',
-  moderate: '#FFFF00',
-  low:      '#00CC00',
-};
+type GeoFieldLabel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+interface GeoFieldProperties {
+  label?: GeoFieldLabel;
+  mean_ndvi?: number | string;
+  ndvi?: number | string;
+  area_ha?: number | string;
+  priority?: number | string;
+  featureId?: string | number;
+  'system:index'?: string;
+  fillColor?: string;
+  outlineColor?: string;
+}
+
+type GeoFieldCollection = GeoJSON.FeatureCollection<GeoJSON.Geometry | null, GeoFieldProperties>;
+
 
 export default function FieldMapView({
   zones,
@@ -37,27 +50,119 @@ export default function FieldMapView({
   zoom,
   zonesLoading = false,
   selectedZone,
+  initialZone = null,
+  onZoneSelect,
   onScanLeaf,
   region,
 }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const targetMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const onZoneSelectRef = useRef(onZoneSelect);
+  const onScanLeafRef = useRef(onScanLeaf);
   const initCenter = useRef(center);
   const initZoom = useRef(zoom);
-  const lastPolygonIdsRef = useRef<string>('');
   const [active, setActive] = useState<FieldZone | null>(null);
+  const [leafPanelOpen, setLeafPanelOpen] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [polygonsVisible, setPolygonsVisible] = useState(true);
+  const [geoStats, setGeoStats] = useState({ total: 0, low: 0, med: 0, high: 0 });
 
-  // Stats computed from polygons
-  const stats = useMemo(() => {
-    const low = polygons.filter(p => p.severity === 'severe').length;
-    const med = polygons.filter(p => p.severity === 'moderate').length;
-    const high = polygons.filter(p => p.severity === 'low').length;
-    return { total: polygons.length, low, med, high };
-  }, [polygons]);
+  const clearTargetMarkers = useCallback(() => {
+    targetMarkersRef.current.forEach(marker => marker.remove());
+    targetMarkersRef.current = [];
+  }, []);
 
-  // ── Map initialisation ────────────────────────────────────────────────────
+  const hasLayer = useCallback((layerId: string) => {
+    const map = mapRef.current;
+    if (!map) return false;
+
+    try {
+      return Boolean(map.getStyle()?.layers?.some(layer => layer.id === layerId));
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const getFeatureCenter = useCallback((feature: GeoJSON.Feature<GeoJSON.Geometry | null, GeoFieldProperties>) => {
+    const geometry = feature.geometry;
+    const coordinates =
+      geometry?.type === 'Polygon'
+        ? geometry.coordinates?.[0]
+        : geometry?.type === 'MultiPolygon'
+        ? geometry.coordinates?.[0]?.[0]
+        : null;
+
+    if (!coordinates?.length) return null;
+
+    const lngs = coordinates.map((coord: number[]) => coord[0]);
+    const lats = coordinates.map((coord: number[]) => coord[1]);
+
+    return {
+      lng: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+      lat: (Math.min(...lats) + Math.max(...lats)) / 2,
+    };
+  }, []);
+
+  const buildZoneFromFeature = useCallback((
+    feature: GeoJSON.Feature<GeoJSON.Geometry | null, GeoFieldProperties>,
+    fallbackLng: number,
+    fallbackLat: number
+  ): FieldZone => {
+    const props = (feature.properties ?? {}) as GeoFieldProperties;
+    const label = String(props.label ?? 'HIGH');
+    const ndviValue = Number.parseFloat(String(props.mean_ndvi ?? props.ndvi ?? '0'));
+    const areaValue = Number.parseFloat(String(props.area_ha ?? '0'));
+    const centerPoint = getFeatureCenter(feature);
+
+    return {
+      id: `field-${props.featureId ?? feature.id ?? 'unknown'}`,
+      label: `Field - NDVI ${Number.isFinite(ndviValue) ? ndviValue.toFixed(2) : 'N/A'}`,
+      description:
+        label === 'LOW'
+          ? `Critical stress - ${areaValue.toFixed(1)} ha, NDVI ${ndviValue.toFixed(2)}`
+          : label === 'MEDIUM'
+          ? `Moderate stress - ${areaValue.toFixed(1)} ha, NDVI ${ndviValue.toFixed(2)}`
+          : `Healthy canopy - ${areaValue.toFixed(1)} ha, NDVI ${ndviValue.toFixed(2)}`,
+      ndviValue: Number.isFinite(ndviValue) ? ndviValue : 0,
+      severity: label === 'LOW' ? 'severe' : label === 'MEDIUM' ? 'moderate' : 'low',
+      position: { x: 50, y: 50 },
+      size: { width: 20, height: 15 },
+      lng: centerPoint?.lng ?? fallbackLng,
+      lat: centerPoint?.lat ?? fallbackLat,
+    };
+  }, [getFeatureCenter]);
+
+  // Load stats from local GeoJSON file
+  useEffect(() => {
+    fetch('/field-zones.geojson')
+      .then(r => r.json())
+      .then((geojson: GeoFieldCollection) => {
+        const features = geojson.features ?? [];
+        const low = features.filter(f => f.properties?.label === 'LOW').length;
+        const med = features.filter(f => f.properties?.label === 'MEDIUM').length;
+        const high = features.filter(f => f.properties?.label === 'HIGH').length;
+        setGeoStats({ total: features.length, low, med, high });
+      })
+      .catch(() => {});
+  }, []);
+
+  // Keep stats alias for template compatibility
+  const stats = geoStats;
+
+  // Unused polygons prop acknowledged (kept for interface compatibility)
+  void polygons;
+  void region;
+
+  useEffect(() => {
+    onZoneSelectRef.current = onZoneSelect;
+  }, [onZoneSelect]);
+
+  useEffect(() => {
+    onScanLeafRef.current = onScanLeaf;
+  }, [onScanLeaf]);
+
+  // Map initialisation
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
@@ -79,14 +184,34 @@ export default function FieldMapView({
       map.remove();
       mapRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  // ── Static layers: farm boundary box + NDVI raster tile ──────────────────
+  // Static layers: farm boundary box only (no GEE API calls)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
-    // Farm boundary box — black rectangle around the entire AOI
+    // RGB base image pinned to farm bounds (underneath all polygon layers)
+    if (!map.getSource('rgb-base')) {
+      map.addSource('rgb-base', {
+        type: 'image',
+        url: '/layers/rgb-base.png',
+        coordinates: [
+          [-115.39, 32.89], // top-left
+          [-115.33, 32.89], // top-right
+          [-115.33, 32.84], // bottom-right
+          [-115.39, 32.84], // bottom-left
+        ],
+      });
+      map.addLayer({
+        id: 'rgb-base-layer',
+        type: 'raster',
+        source: 'rgb-base',
+        paint: { 'raster-opacity': 1, 'raster-resampling': 'linear' },
+      });
+    }
+
+    // Farm boundary box - white rectangle around the entire AOI
     if (!map.getSource('farm-boundary')) {
       map.addSource('farm-boundary', {
         type: 'geojson',
@@ -112,245 +237,207 @@ export default function FieldMapView({
         paint: { 'line-color': '#FFFFFF', 'line-width': 3, 'line-opacity': 1 },
       });
     }
-
-    // NDVI raster tile — Vegetation Health layer from GEE
-    const { west, south, east, north } = FARM_BOUNDS;
-    fetch(`/api/tiles?west=${west}&south=${south}&east=${east}&north=${north}`)
-      .then(r => r.json())
-      .then(({ tileUrl }: { tileUrl: string }) => {
-        if (!tileUrl || !mapRef.current) return;
-        const m = mapRef.current;
-        if (m.getSource('ndvi-raster')) return;
-        m.addSource('ndvi-raster', {
-          type: 'raster',
-          tiles: [tileUrl],
-          tileSize: 256,
-        });
-        m.addLayer(
-          { id: 'ndvi-raster-layer', type: 'raster', source: 'ndvi-raster',
-            paint: { 'raster-opacity': 0.85, 'raster-resampling': 'nearest' } },
-          'farm-boundary-line', // insert below the boundary box
-        );
-      })
-      .catch(() => {}); // server offline — skip silently, vector polygons still show
   }, [mapLoaded]);
 
-  // ── Field polygon layers — fills + outlines + priority overlays ───────────
+  // Field polygon layers - loaded from local GeoJSON file, no GEE API calls
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
-    const polyIds = polygons.map(p => p.id).join(',');
-    if (polyIds === lastPolygonIdsRef.current) return;
-    lastPolygonIdsRef.current = polyIds;
+    let cancelled = false;
 
-    // Clear previous field/priority layers and sources
-    const style = map.getStyle();
-    if (style?.sources) {
-      Object.keys(style.sources)
-        .filter(k => k.startsWith('field-') || k.startsWith('zone-') || k.startsWith('priority-'))
-        .forEach(sid => {
-          [`${sid}-fill`, `${sid}-line`].forEach(id => {
-            if (map.getLayer(id)) map.removeLayer(id);
-          });
-          if (map.getSource(sid)) map.removeSource(sid);
-        });
-    }
-
-    // Sort: draw healthy first (bottom), then moderate, then severe (top)
-    const sorted = [...polygons].sort((a, b) => {
-      const order = { low: 0, moderate: 1, severe: 2 };
-      return (order[a.severity] ?? 0) - (order[b.severity] ?? 0);
-    });
-
-    sorted.forEach(field => {
-      const sourceId = `field-${field.id}`;
-      const [west, south, east, north] = field.bounds;
-      const fillColor = GEE_FILL[field.severity];
-
-      map.addSource(sourceId, {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: { id: field.id, severity: field.severity, ndvi: field.meanNdvi },
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[
-              [west, south],
-              [east, south],
-              [east, north],
-              [west, north],
-              [west, south],
-            ]],
-          },
-        },
+    const selectFeature = (
+      feature: GeoJSON.Feature<GeoJSON.Geometry | null, GeoFieldProperties>,
+      lng: number,
+      lat: number
+    ) => {
+      const tempZone = buildZoneFromFeature(feature, lng, lat);
+      setActive(tempZone);
+      onZoneSelectRef.current?.(tempZone);
+      setLeafPanelOpen(true);
+      map.flyTo({
+        center: [tempZone.lng, tempZone.lat],
+        zoom: Math.min(Math.max(map.getZoom(), 12.8), 13.6),
+        duration: 600,
       });
-
-      // Fill — reduced opacity so NDVI raster shows through
-      map.addLayer({
-        id: `${sourceId}-fill`,
-        type: 'fill',
-        source: sourceId,
-        paint: {
-          'fill-color': fillColor,
-          'fill-opacity': 0.4,
-        },
-      });
-
-      // Thin outline matching fill color (field boundary marker only)
-      map.addLayer({
-        id: `${sourceId}-line`,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': fillColor,
-          'line-width': 1.5,
-          'line-opacity': 0.8,
-        },
-      });
-    });
-
-    // ── Priority outline layers (top 15 by priority score) ──────────────────
-    const toFeature = (field: FieldPolygon) => {
-      const [w, s, e, n] = field.bounds;
-      return {
-        type: 'Feature' as const,
-        properties: { id: field.id },
-        geometry: {
-          type: 'Polygon' as const,
-          coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]],
-        },
-      };
     };
 
-    // PRIORITY - RED Fields Must Visit → black 3px outline
-    const topRed = [...polygons]
-      .filter(p => p.severity === 'severe')
-      .sort((a, b) => b.priority - a.priority)
-      .slice(0, 15);
+    const clickHandler = (e: mapboxgl.MapLayerMouseEvent) => {
+      if (!e.features?.length) return;
 
-    if (topRed.length > 0) {
-      map.addSource('priority-red', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: topRed.map(toFeature) },
-      });
-      map.addLayer({
-        id: 'priority-red-line',
-        type: 'line',
-        source: 'priority-red',
-        paint: { 'line-color': '#000000', 'line-width': 3, 'line-opacity': 1 },
-      });
-    }
-
-    // PRIORITY - YELLOW Fields Monitor → orange 3px outline
-    const topOrange = [...polygons]
-      .filter(p => p.severity === 'moderate')
-      .sort((a, b) => b.priority - a.priority)
-      .slice(0, 15);
-
-    if (topOrange.length > 0) {
-      map.addSource('priority-orange', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: topOrange.map(toFeature) },
-      });
-      map.addLayer({
-        id: 'priority-orange-line',
-        type: 'line',
-        source: 'priority-orange',
-        paint: { 'line-color': '#FF8C00', 'line-width': 3, 'line-opacity': 1 },
-      });
-    }
-
-    // Click handler on polygons — find closest zone for ZoneCard
-    const clickHandler = (e: mapboxgl.MapMouseEvent) => {
-      if (!e.lngLat) return;
-      const point = e.lngLat;
-
-      const features = map.queryRenderedFeatures(e.point, {
-        layers: sorted.map(f => `field-${f.id}-fill`),
-      });
-
-      if (features.length > 0) {
-        const clickedId = features[0].properties?.id;
-        const clickedPoly = polygons.find(p => p.id === clickedId);
-
-        if (clickedPoly) {
-          const matchedZone = zones.find(z =>
-            Math.abs(z.ndviValue - clickedPoly.meanNdvi) < 0.01
-          );
-
-          if (matchedZone) {
-            setActive(matchedZone);
-          } else {
-            const [w, s, ea, n] = clickedPoly.bounds;
-            const tempZone: FieldZone = {
-              id: `click-${clickedPoly.id}`,
-              label: `Field ${clickedPoly.id.toUpperCase()}`,
-              description: clickedPoly.severity === 'severe'
-                ? `Critical stress — NDVI ${clickedPoly.meanNdvi.toFixed(2)}, ${clickedPoly.areaHa.toFixed(1)} ha`
-                : clickedPoly.severity === 'moderate'
-                ? `Moderate stress — NDVI ${clickedPoly.meanNdvi.toFixed(2)}, ${clickedPoly.areaHa.toFixed(1)} ha`
-                : `Healthy canopy — NDVI ${clickedPoly.meanNdvi.toFixed(2)}, ${clickedPoly.areaHa.toFixed(1)} ha`,
-              ndviValue: clickedPoly.meanNdvi,
-              severity: clickedPoly.severity,
-              position: { x: 50, y: 50 },
-              size: { width: 20, height: 15 },
-              lng: (w + ea) / 2,
-              lat: (s + n) / 2,
-            };
-            setActive(tempZone);
-          }
-        }
-      }
+      const feature = e.features[0] as GeoJSON.Feature<GeoJSON.Geometry | null, GeoFieldProperties>;
+      selectFeature(feature, e.lngLat.lng, e.lngLat.lat);
     };
-
-    map.on('click', clickHandler);
 
     const enterHandler = () => { map.getCanvas().style.cursor = 'pointer'; };
     const leaveHandler = () => { map.getCanvas().style.cursor = ''; };
 
-    sorted.forEach(f => {
-      const layerId = `field-${f.id}-fill`;
-      map.on('mouseenter', layerId, enterHandler);
-      map.on('mouseleave', layerId, leaveHandler);
-    });
+    const bindHandlers = () => {
+      if (!hasLayer('gee-fields-hit')) return;
+      map.off('click', 'gee-fields-hit', clickHandler);
+      map.off('mouseenter', 'gee-fields-hit', enterHandler);
+      map.off('mouseleave', 'gee-fields-hit', leaveHandler);
+      map.on('click', 'gee-fields-hit', clickHandler);
+      map.on('mouseenter', 'gee-fields-hit', enterHandler);
+      map.on('mouseleave', 'gee-fields-hit', leaveHandler);
+    };
+
+    fetch('/field-zones.geojson')
+      .then(r => r.json())
+      .then((geojson: GeoFieldCollection) => {
+        if (cancelled || !mapRef.current) return;
+        clearTargetMarkers();
+
+        const existingSource = map.getSource('gee-fields') as mapboxgl.GeoJSONSource | undefined;
+        if (existingSource) {
+          existingSource.setData(geojson);
+        } else {
+          map.addSource('gee-fields', { type: 'geojson', data: geojson });
+
+          // Filled polygons: RED=LOW, YELLOW=MEDIUM, GREEN=HIGH
+          map.addLayer({
+            id: 'gee-fields-fill',
+            type: 'fill',
+            source: 'gee-fields',
+            paint: {
+              'fill-antialias': true,
+              'fill-color': [
+                'match',
+                ['get', 'label'],
+                'LOW', '#FF0000',
+                'MEDIUM', '#FFFF00',
+                'HIGH', '#00CC00',
+                '#00CC00',
+              ],
+              'fill-opacity': 0.45,
+            },
+          });
+
+          // Click target layer (invisible, on top of fill)
+          map.addLayer({
+            id: 'gee-fields-hit',
+            type: 'fill',
+            source: 'gee-fields',
+            paint: { 'fill-color': '#000000', 'fill-opacity': 0.001 },
+          });
+
+          // LOW fields: black outline
+          map.addLayer({
+            id: 'priority-red-line',
+            type: 'line',
+            source: 'gee-fields',
+            filter: ['==', ['get', 'label'], 'LOW'],
+            paint: { 'line-color': '#000000', 'line-width': 2, 'line-blur': 0.3 },
+          });
+
+          // MEDIUM fields: orange outline
+          map.addLayer({
+            id: 'priority-orange-line',
+            type: 'line',
+            source: 'gee-fields',
+            filter: ['==', ['get', 'label'], 'MEDIUM'],
+            paint: { 'line-color': '#FF6600', 'line-width': 2, 'line-blur': 0.3 },
+          });
+
+          // HIGH fields: subtle dark outline
+          map.addLayer({
+            id: 'gee-fields-line',
+            type: 'line',
+            source: 'gee-fields',
+            filter: ['==', ['get', 'label'], 'HIGH'],
+            paint: { 'line-color': '#111111', 'line-width': 1, 'line-blur': 0.5, 'line-opacity': 0.85 },
+          });
+        }
+
+        geojson.features.forEach((feature, index) => {
+          const label = String(feature.properties?.label ?? 'HIGH');
+          if (label === 'HIGH') return;
+
+          const centerPoint = getFeatureCenter(feature);
+          if (!centerPoint) return;
+
+          const markerElement = document.createElement('button');
+          markerElement.type = 'button';
+          markerElement.setAttribute('aria-label', `Inspect field ${index + 1}`);
+          markerElement.style.width = '28px';
+          markerElement.style.height = '28px';
+          markerElement.style.borderRadius = '999px';
+          markerElement.style.border = '3px solid #FFFFFF';
+          markerElement.style.background = '#2D5A27';
+          markerElement.style.boxShadow = '0 4px 14px rgba(0,0,0,0.35)';
+          markerElement.style.display = polygonsVisible ? 'flex' : 'none';
+          markerElement.style.alignItems = 'center';
+          markerElement.style.justifyContent = 'center';
+          markerElement.style.cursor = 'pointer';
+
+          const innerDot = document.createElement('span');
+          innerDot.style.width = '9px';
+          innerDot.style.height = '9px';
+          innerDot.style.borderRadius = '999px';
+          innerDot.style.background = '#FFFFFF';
+          markerElement.appendChild(innerDot);
+
+          markerElement.addEventListener('click', (event) => {
+            event.stopPropagation();
+            selectFeature(feature, centerPoint.lng, centerPoint.lat);
+          });
+
+          const marker = new mapboxgl.Marker({ element: markerElement, anchor: 'center' })
+            .setLngLat([centerPoint.lng, centerPoint.lat])
+            .addTo(map);
+
+          targetMarkersRef.current.push(marker);
+        });
+
+        bindHandlers();
+      })
+      .catch(() => {});
 
     return () => {
-      map.off('click', clickHandler);
-      sorted.forEach(f => {
-        const layerId = `field-${f.id}-fill`;
-        map.off('mouseenter', layerId, enterHandler);
-        map.off('mouseleave', layerId, leaveHandler);
-      });
-    };
-  }, [polygons, zones, mapLoaded]);
-
-  // ── Polygon visibility toggle ─────────────────────────────────────────────
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapLoaded) return;
-    const vis = polygonsVisible ? 'visible' : 'none';
-    const style = map.getStyle();
-    if (!style?.layers) return;
-    style.layers.forEach(layer => {
-      if (layer.id.startsWith('field-') || layer.id.startsWith('priority-')) {
-        map.setLayoutProperty(layer.id, 'visibility', vis);
+      cancelled = true;
+      if (hasLayer('gee-fields-hit')) {
+        map.off('click', 'gee-fields-hit', clickHandler);
+        map.off('mouseenter', 'gee-fields-hit', enterHandler);
+        map.off('mouseleave', 'gee-fields-hit', leaveHandler);
       }
-    });
-  }, [polygonsVisible, mapLoaded]);
+      clearTargetMarkers();
+      try {
+        map.getCanvas().style.cursor = '';
+      } catch {
+        // Map canvas may already be detached during teardown.
+      }
+    };
+  }, [buildZoneFromFeature, clearTargetMarkers, getFeatureCenter, hasLayer, mapLoaded, polygonsVisible]);
 
-  // ── Auto-select first stressed zone when selectedZone prop is set ─────────
-  useEffect(() => {
-    if (selectedZone && !active && zones.length > 0) {
-      setActive(zones[0]);
-    }
-  }, [selectedZone, zones, active]);
+  const POLYGON_LAYER_IDS = [
+    'gee-fields-fill',
+    'gee-fields-hit',
+    'gee-fields-line',
+    'priority-red-line',
+    'priority-orange-line',
+  ];
+
+  const togglePolygons = () => {
+    const next = !polygonsVisible;
+    setPolygonsVisible(next);
+    const map = mapRef.current;
+    if (!map) return;
+    const vis = next ? 'visible' : 'none';
+    POLYGON_LAYER_IDS.forEach(id => {
+      if (hasLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
+    });
+    targetMarkersRef.current.forEach(marker => {
+      const element = marker.getElement() as HTMLElement;
+      element.style.display = next ? 'flex' : 'none';
+    });
+  };
 
   const alertCount = stats.low;
+  const displayedZone = active ?? initialZone ?? (selectedZone && zones.length > 0 ? zones[0] : null);
 
   return (
     <motion.div
-      className="relative h-full w-full overflow-hidden bg-[#0a0a0a]"
+      className="relative h-full w-full overflow-hidden bg-[#050805]"
       variants={blurFade}
       initial="hidden"
       animate="visible"
@@ -362,50 +449,61 @@ export default function FieldMapView({
         .mapboxgl-ctrl-attrib { display: none !important; }
       `}</style>
 
-      {/* Mapbox container — full screen */}
-      <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
+      {/* Mapbox container - full screen */}
+      <div ref={mapContainer} className="absolute inset-0 h-full w-full" />
 
-      {/* Top gradient */}
-      <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-black/60 to-transparent pointer-events-none z-10" />
+      <div className="pointer-events-none absolute inset-0 z-10" style={{ background: 'linear-gradient(to bottom, rgba(5,8,5,0.58), transparent 24%, rgba(5,8,5,0.24))' }} />
 
       {/* Header */}
       <motion.div
-        className="absolute top-0 left-0 right-0 z-20 flex items-start justify-between px-5 pt-11"
+        className="absolute left-4 right-4 top-4 z-20"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: mapLoaded ? 1 : 0, y: mapLoaded ? 0 : -8 }}
         transition={{ delay: 0.3 }}
       >
-        <div>
-          <p className="text-[9px] font-bold tracking-[0.15em] text-white/40 uppercase mb-0.5">
-            {region ?? 'Sentinel-2 · NDVI · Imperial Valley CA'}
-          </p>
-          <h2 className="text-[17px] font-semibold text-white leading-tight">Field Overview</h2>
-        </div>
+        <div
+          className="app-card mx-auto w-full max-w-[480px] p-5"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}
+        >
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <p
+              className="section-label mb-1"
+              style={{ fontSize: 18, fontWeight: 800, color: '#6B6B6B', letterSpacing: '0.06em' }}
+            >
+              Imperial County, California
+            </p>
+            <h2 className="text-[24px] font-extrabold leading-tight" style={{ color: '#FFFFFF' }}>Field Overview</h2>
+          </div>
 
-        {alertCount > 0 && (
-          <motion.div
-            className="flex items-center gap-1.5 mt-1 px-3 py-1.5 rounded-full"
-            style={{ background: 'rgba(185,28,28,0.25)', border: '1px solid rgba(239,68,68,0.35)' }}
-            animate={{ opacity: [1, 0.55, 1] }}
-            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-            <span className="text-[10px] font-semibold text-red-300 whitespace-nowrap">
-              {alertCount} Alert{alertCount !== 1 ? 's' : ''}
-            </span>
-          </motion.div>
-        )}
+          {alertCount > 0 && (
+            <motion.div
+              className="mt-1 flex items-center gap-2 rounded-full px-4 py-2"
+              style={{ background: 'rgba(45,90,39,0.18)', border: '1px solid rgba(255,255,255,0.08)' }}
+              animate={{ opacity: [1, 0.72, 1] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <span className="h-2 w-2 rounded-full" style={{ background: '#FFFFFF' }} />
+              <span className="whitespace-nowrap text-sm font-bold" style={{ color: '#FFFFFF' }}>
+                {alertCount} Alert{alertCount !== 1 ? 's' : ''}
+              </span>
+            </motion.div>
+          )}
+        </div>
       </motion.div>
 
-      {/* Polygon toggle button — top right, below header */}
+      {/* Polygon toggle button - top right, below header */}
       <motion.button
-        className="absolute top-12 right-4 z-20 px-3 py-1.5 rounded-lg text-[11px] font-semibold"
+        className="absolute right-4 top-[132px] z-20 app-button-primary"
         style={{
-          background: polygonsVisible ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-          color: '#1a1a1a',
+          background: polygonsVisible ? '#2D5A27' : '#FFFFFF',
+          color: polygonsVisible ? '#FFFFFF' : '#2D5A27',
+          border: polygonsVisible ? 'none' : '2px solid #2D5A27',
+          padding: '18px 24px',
+          fontSize: '18px',
+          fontWeight: 800,
+          minWidth: 220,
         }}
-        onClick={() => setPolygonsVisible(v => !v)}
+        onClick={togglePolygons}
         initial={{ opacity: 0 }}
         animate={{ opacity: mapLoaded ? 1 : 0 }}
         transition={{ delay: 0.7 }}
@@ -413,98 +511,105 @@ export default function FieldMapView({
         {polygonsVisible ? 'Hide Polygons' : 'Show Polygons'}
       </motion.button>
 
-      {/* Stats panel — top right */}
+      {/* Stats panel - top right */}
       <motion.div
-        className="absolute top-24 right-4 z-20"
+        className="absolute right-4 top-[220px] z-20 w-[280px] max-w-[calc(100vw-32px)]"
         initial={{ opacity: 0, x: 8 }}
-        animate={{ opacity: mapLoaded && polygons.length > 0 ? 1 : 0, x: mapLoaded ? 0 : 8 }}
+        animate={{ opacity: mapLoaded && geoStats.total > 0 ? 1 : 0, x: mapLoaded ? 0 : 8 }}
         transition={{ delay: 0.6 }}
       >
         <div
-          className="px-3.5 py-3 rounded-lg"
-          style={{ background: 'rgba(255,255,255,0.95)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}
+          className="app-card px-5 py-5"
+          style={{ maxHeight: '42vh', overflowY: 'auto' }}
         >
-          <p className="text-[11px] font-bold text-gray-800 mb-2">Field Counts</p>
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: '#FF0000' }} />
-              <span className="text-[11px] text-red-700 font-semibold">Critical: {stats.low}</span>
+          <p className="app-label mb-3" style={{ textAlign: 'center' }}>Field Counts</p>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-center gap-2">
+              <span className="h-3.5 w-3.5 shrink-0 rounded-sm" style={{ background: '#FF0000' }} />
+              <span className="text-base font-bold" style={{ color: '#111111' }}>Critical: {stats.low}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: '#FFFF00' }} />
-              <span className="text-[11px] text-yellow-700 font-semibold">Moderate: {stats.med}</span>
+            <div className="flex items-center justify-center gap-2">
+              <span className="h-3.5 w-3.5 shrink-0 rounded-sm" style={{ background: '#FFFF00' }} />
+              <span className="text-base font-bold" style={{ color: '#111111' }}>Moderate: {stats.med}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: '#00CC00' }} />
-              <span className="text-[11px] text-green-700 font-semibold">Healthy: {stats.high}</span>
+            <div className="flex items-center justify-center gap-2">
+              <span className="h-3.5 w-3.5 shrink-0 rounded-sm" style={{ background: '#00CC00' }} />
+              <span className="text-base font-bold" style={{ color: '#111111' }}>Healthy: {stats.high}</span>
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Legend — bottom left, matching GEE screenshot */}
+      {/* Legend - bottom left, matching GEE screenshot */}
       <motion.div
-        className="absolute bottom-28 left-4 z-20"
+        className="absolute bottom-28 left-4 z-20 w-[340px] max-w-[calc(100vw-32px)]"
         initial={{ opacity: 0 }}
         animate={{ opacity: mapLoaded ? 1 : 0 }}
         transition={{ delay: 0.8 }}
       >
         <div
-          className="px-3.5 py-3 rounded-lg"
-          style={{ background: 'rgba(255,255,255,0.95)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}
+          className="app-card px-5 py-5"
         >
-          <p className="text-[12px] font-bold text-gray-900 mb-0.5">Field Health (NDVI)</p>
-          <p className="text-[10px] text-gray-500 mb-0.5">Imperial Valley CA – Holtville Cropland</p>
-          <p className="text-[10px] text-gray-400 mb-2.5">USDA CDL + spectral mask applied</p>
+          <p className="text-[22px] font-extrabold mb-2" style={{ color: '#111111', textAlign: 'center' }}>Field Health (NDVI)</p>
+          <p className="text-sm font-semibold mb-1" style={{ color: '#444444', textAlign: 'center' }}>Imperial Valley CA - Holtville Cropland</p>
+          <p className="text-sm font-semibold mb-4" style={{ color: '#444444', textAlign: 'center' }}>USDA CDL + spectral mask applied</p>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2.5">
-              <span className="w-4 h-4 rounded-sm shrink-0" style={{ background: '#00CC00' }} />
-              <span className="text-[11px] text-gray-700">GREEN = Healthy (NDVI &gt; 0.55)</span>
+              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#00CC00' }} />
+              <span className="text-base font-semibold" style={{ color: '#111111' }}>GREEN = Healthy (NDVI &gt; 0.55)</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <span className="w-4 h-4 rounded-sm shrink-0" style={{ background: '#FFFF00' }} />
-              <span className="text-[11px] text-gray-700">YELLOW = Moderate (NDVI 0.35-0.55)</span>
+              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#FFFF00' }} />
+              <span className="text-base font-semibold" style={{ color: '#111111' }}>YELLOW = Moderate (NDVI 0.35-0.55)</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <span className="w-4 h-4 rounded-sm shrink-0" style={{ background: '#FF0000' }} />
-              <span className="text-[11px] text-gray-700">RED = Critical (NDVI &lt; 0.35)</span>
+              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#FF0000' }} />
+              <span className="text-base font-semibold" style={{ color: '#111111' }}>RED = Critical (NDVI &lt; 0.35)</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <span className="w-4 h-4 rounded-sm shrink-0" style={{ background: '#FF8C00' }} />
-              <span className="text-[11px] text-gray-700">ORANGE outline = Yellow priority fields</span>
+              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#FF8C00' }} />
+              <span className="text-base font-semibold" style={{ color: '#111111' }}>ORANGE outline = Yellow priority fields</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <span className="w-4 h-4 rounded-sm shrink-0" style={{ background: '#000000' }} />
-              <span className="text-[11px] text-gray-700">BLACK outline = Red priority fields</span>
+              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#000000' }} />
+              <span className="text-base font-semibold" style={{ color: '#111111' }}>BLACK outline = Red priority fields</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <span className="w-4 h-4 rounded-sm shrink-0" style={{ background: '#808080' }} />
-              <span className="text-[11px] text-gray-700">GRAY = Roads/buildings/plowed (CDL masked)</span>
+              <span className="h-4 w-4 shrink-0 rounded-sm" style={{ background: '#808080' }} />
+              <span className="text-base font-semibold" style={{ color: '#111111' }}>GRAY = Roads/buildings/plowed (CDL masked)</span>
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Bottom gradient */}
-      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/60 to-transparent pointer-events-none z-10" />
-
       {/* Loading state */}
       {zonesLoading && (
-        <div className="absolute bottom-36 inset-x-0 flex justify-center z-30 pointer-events-none">
-          <div className="glass px-4 py-2 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[11px] text-white/60">Loading satellite field data…</span>
+        <div className="pointer-events-none absolute inset-x-0 bottom-36 z-30 flex justify-center">
+          <div className="glass flex items-center gap-2 px-4 py-3">
+            <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: '#2D5A27' }} />
+            <span className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Loading satellite field data...</span>
           </div>
         </div>
       )}
 
-      {/* Zone detail card — shown when a polygon is clicked */}
+      {/* Zone detail card - shown when a polygon is clicked */}
       <AnimatePresence>
-        {(active || selectedZone) && zones.length > 0 && (
+        {displayedZone && !leafPanelOpen && (
           <ZoneCard
-            zone={active ?? zones[0]}
-            onScanLeaf={() => onScanLeaf?.()}
+            zone={displayedZone}
+            onScanLeaf={() => setLeafPanelOpen(true)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {leafPanelOpen && displayedZone && (
+          <LeafAnalysisPanel
+            fieldId={displayedZone.id}
+            fieldLabel={displayedZone.label}
+            onClose={() => setLeafPanelOpen(false)}
+            onScanLeaf={onScanLeaf}
           />
         )}
       </AnimatePresence>

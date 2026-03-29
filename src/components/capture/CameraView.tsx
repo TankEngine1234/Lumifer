@@ -72,26 +72,26 @@ export default function CameraView({ isLocked, onCapture, onLock }: Props) {
         autoPlay
       />
 
-      {/* Dark vignette overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(to bottom, rgba(245,245,245,0.14), transparent 35%, rgba(17,17,17,0.22))' }}
+      />
 
-      {/* Zone label */}
       <motion.div
-        className="absolute top-14 left-0 right-0 z-20 text-center"
+        className="absolute top-10 left-1/2 -translate-x-1/2 z-20"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <span className="inline-flex items-center gap-2 px-3 py-1.5 glass text-xs font-medium text-white/80">
-          <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-          Scan leaf in Zone A3
-        </span>
+        <div className="glass px-4 py-3 flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: '#2D5A27' }} />
+          <span className="text-sm font-bold" style={{ color: '#111111' }}>
+            Scan leaf in Zone A3
+          </span>
+        </div>
       </motion.div>
 
-      {/* Viewfinder brackets */}
       <Viewfinder isLocked={isLocked} />
-
-      {/* Capture button */}
       <CaptureButton onCapture={handleCapture} disabled={!isReady} />
 
       {/* Upload button */}
@@ -123,14 +123,13 @@ export default function CameraView({ isLocked, onCapture, onLock }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Camera error state */}
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-40">
-          <div className="text-center p-6 flex flex-col items-center gap-4">
-            <p className="text-red-400 text-sm">Camera unavailable</p>
-            <p className="text-white/40 text-xs max-w-[220px] leading-relaxed">{error}</p>
+        <div className="absolute inset-0 flex items-center justify-center z-40 px-4" style={{ background: 'rgba(245,245,245,0.94)' }}>
+          <div className="app-card w-full max-w-[360px] p-6 text-center flex flex-col items-center gap-4">
+            <p className="app-label">Camera unavailable</p>
+            <p className="app-text" style={{ textAlign: 'center' }}>{error}</p>
             <button
-              className="px-5 py-2 glass text-sm font-medium text-white/80 active:scale-95 transition-transform"
+              className="app-button-secondary"
               onClick={retry}
             >
               Try again

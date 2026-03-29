@@ -5,10 +5,9 @@ interface Props {
   isLocked: boolean;
 }
 
-// Corner bracket component — L-shaped SVG path
 function Corner({ position, isLocked }: { position: 'tl' | 'tr' | 'bl' | 'br'; isLocked: boolean }) {
   const size = 40;
-  const offset = isLocked ? 20 : 0; // Brackets tighten inward when locked
+  const offset = isLocked ? 20 : 0;
 
   const transforms: Record<string, { x: number; y: number; rotate: number }> = {
     tl: { x: offset, y: offset, rotate: 0 },
@@ -50,7 +49,7 @@ function Corner({ position, isLocked }: { position: 'tl' | 'tr' | 'bl' | 'br'; i
         <path
           d={`M 2 ${size} L 2 2 L ${size} 2`}
           fill="none"
-          stroke={isLocked ? '#22C55E' : 'white'}
+          stroke={isLocked ? '#2D5A27' : '#FFFFFF'}
           strokeWidth={3}
           strokeLinecap="round"
         />
@@ -68,10 +67,10 @@ export default function Viewfinder({ isLocked }: Props) {
         <Corner position="bl" isLocked={isLocked} />
         <Corner position="br" isLocked={isLocked} />
 
-        {/* Lock glow */}
         {isLocked && (
           <motion.div
-            className="absolute inset-0 rounded-lg border-2 border-green-500/30"
+            className="absolute inset-0 rounded-lg border-2"
+            style={{ borderColor: 'rgba(45,90,39,0.32)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: [0, 0.6, 0.3] }}
             transition={{ duration: 1 }}

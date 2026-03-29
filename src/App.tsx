@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { DemoPhase, NPKResult, ProcessingResult } from './types';
+import type { DemoPhase, FieldZone, NPKResult, ProcessingResult } from './types';
 import { getNextPhase, getPhaseDelay } from './animations/demoSequence';
 import { useNASAPower } from './hooks/useNASAPower';
 import { useFieldZones } from './hooks/useFieldZones';
 import GradientBackground from './components/ui/GradientBackground';
 import Logo from './components/ui/Logo';
+import FarmSetup from './components/FarmSetup';
 import FieldMapView from './components/fieldmap/FieldMapView';
 import CameraView from './components/capture/CameraView';
 import AnalysisOverlay from './components/analysis/AnalysisOverlay';
@@ -16,9 +17,11 @@ import DashboardSidebar from './components/dashboard/DashboardSidebar';
 
 function App() {
   const [phase, setPhase] = useState<DemoPhase>('splash');
+  const [setupDone, setSetupDone] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
   const [npkResult, setNpkResult] = useState<NPKResult | null>(null);
+  const [selectedFieldZone, setSelectedFieldZone] = useState<FieldZone | null>(null);
 
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDemo = new URLSearchParams(window.location.search).has('demo');
@@ -58,6 +61,14 @@ function App() {
   const handleInferenceComplete = useCallback((result: NPKResult) => {
     setNpkResult(result);
   }, []);
+
+  const handleFieldZoneSelect = useCallback((zone?: FieldZone) => {
+    setSelectedFieldZone(zone ?? null);
+  }, []);
+
+  const handleScanLeaf = useCallback(() => {
+    advanceTo('capture');
+  }, [advanceTo]);
 
   // Hidden escape hatch: triple-tap top-right to skip to results
   const [tapCount, setTapCount] = useState(0);
@@ -118,7 +129,11 @@ function App() {
             <Logo key="splash" onComplete={() => !isDemo && advanceTo('fieldmap')} />
           )}
 
-          {(phase === 'fieldmap' || phase === 'zone') && (
+          {phase === 'fieldmap' && !setupDone && (
+            <FarmSetup key="setup" onComplete={() => setSetupDone(true)} />
+          )}
+
+          {phase === 'fieldmap' && setupDone && (
             <FieldMapView
               key="fieldmap"
               zones={zones}
@@ -127,8 +142,25 @@ function App() {
               zoom={zoom}
               zonesLoading={zonesStatus === 'loading'}
               region={region}
-              selectedZone={phase === 'zone'}
-              onScanLeaf={() => advanceTo('capture')}
+              initialZone={selectedFieldZone}
+              onZoneSelect={handleFieldZoneSelect}
+              onScanLeaf={handleScanLeaf}
+            />
+          )}
+
+          {phase === 'zone' && (
+            <FieldMapView
+              key="zone"
+              zones={zones}
+              polygons={polygons}
+              center={center}
+              zoom={zoom}
+              zonesLoading={zonesStatus === 'loading'}
+              region={region}
+              initialZone={selectedFieldZone}
+              selectedZone
+              onZoneSelect={handleFieldZoneSelect}
+              onScanLeaf={handleScanLeaf}
             />
           )}
 

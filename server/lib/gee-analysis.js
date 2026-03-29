@@ -231,6 +231,7 @@ export async function analyzeFields(west, south, east, north) {
       area_ha: Math.round((props.area_ha || 0) * 10) / 10,
       priority: Math.round((props.priority || 0) * 10) / 10,
       greenness: Math.round((props.greenness || 1) * 100) / 100,
+      geometry: feature.geometry,
       bounds: [
         Math.round(Math.min(...lngs) * 10000) / 10000,
         Math.round(Math.min(...lats) * 10000) / 10000,

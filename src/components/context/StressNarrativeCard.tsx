@@ -17,10 +17,9 @@ const nutrientLabel: Record<NutrientType, string> = {
 };
 
 const stressIcon = { heat: Zap, drought: CloudRain, humidity: Wind };
-const stressColor = { heat: '#f87171', drought: '#fb923c', humidity: '#60a5fa' };
+const stressColor = { heat: '#111111', drought: '#2D5A27', humidity: '#4A7A44' };
 
 export default function StressNarrativeCard({ npkResult, climate, delay = 0.6 }: Props) {
-  // Find primary deficiency
   const nutrients: NutrientType[] = ['nitrogen', 'phosphorus', 'potassium'];
   const primaryNutrient = nutrients
     .filter(n => npkResult[n].level === 'deficient')
@@ -28,7 +27,6 @@ export default function StressNarrativeCard({ npkResult, climate, delay = 0.6 }:
 
   const correlations = getCorrelationsForNutrient(primaryNutrient);
 
-  // Check which correlation is confirmed by climate data
   const confirmed = correlations.find(c => {
     if (c.stressType === 'heat') return climate.heatDays >= c.confirmThreshold;
     if (c.stressType === 'drought') return climate.droughtGap >= c.confirmThreshold;
@@ -38,15 +36,15 @@ export default function StressNarrativeCard({ npkResult, climate, delay = 0.6 }:
 
   if (!confirmed) {
     return (
-      <GlassCard delay={delay} className="!p-3">
-        <div className="flex items-start gap-2.5">
-          <CheckCircle className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
+      <GlassCard delay={delay} className="!p-5">
+        <div className="flex items-start gap-3">
+          <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: '#2D5A27' }} />
           <div>
-            <p className="text-sm font-semibold text-white mb-0.5">Climate Conditions Normal</p>
-            <p className="text-xs text-white/70 leading-relaxed">
+            <p className="app-label mb-2">Climate Conditions Normal</p>
+            <p className="app-text" style={{ lineHeight: 1.55 }}>
               NASA data shows no major heat, drought, or humidity stress events over the past 90 days.
-              The detected <span className="font-semibold text-white">{nutrientLabel[primaryNutrient]}</span> deficiency
-              likely has a soil chemistry or agronomic cause — check soil pH and application history.
+              The detected <span style={{ color: '#111111', fontWeight: 800 }}> {nutrientLabel[primaryNutrient]} </span>
+              deficiency likely has a soil chemistry or agronomic cause. Check soil pH and application history.
             </p>
           </div>
         </div>
@@ -64,42 +62,37 @@ export default function StressNarrativeCard({ npkResult, climate, delay = 0.6 }:
     : `${climate.lowHumidityDays} days below 40% humidity`;
 
   return (
-    <GlassCard delay={delay} className="!p-3">
+    <GlassCard delay={delay} className="!p-5">
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: delay + 0.1 }}
       >
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-2">
-          <div className="p-1.5 rounded-lg shrink-0" style={{ backgroundColor: `${color}18` }}>
-            <Icon className="w-3.5 h-3.5" style={{ color }} />
+        <div className="flex items-center gap-3 mb-3">
+          <div className="p-2 rounded-xl shrink-0" style={{ backgroundColor: `${color}12` }}>
+            <Icon className="w-4 h-4" style={{ color }} />
           </div>
-          <p className="text-sm font-semibold text-white">Climate Explains Deficiency</p>
+          <p className="app-label">Climate Explains Deficiency</p>
         </div>
 
-        {/* Narrative sentence */}
-        <p className="text-xs text-white/80 leading-relaxed mb-2.5">
-          Your leaf shows{' '}
-          <span className="font-semibold text-white">{nutrientLabel[primaryNutrient]} deficiency.</span>{' '}
-          NASA POWER data recorded{' '}
-          <span className="font-semibold" style={{ color }}>{stressDesc}</span>{' '}
-          this season — {confirmed.mechanismShort}
+        <p className="app-text mb-4" style={{ lineHeight: 1.6 }}>
+          Your leaf shows <span style={{ color: '#111111', fontWeight: 800 }}>{nutrientLabel[primaryNutrient]} deficiency.</span>
+          NASA POWER data recorded <span style={{ color, fontWeight: 800 }}> {stressDesc} </span>
+          this season, and {confirmed.mechanismShort}
         </p>
 
-        {/* Uptake reduction bar */}
-        <div className="flex items-center gap-2 mb-2.5">
+        <div className="flex items-center gap-3 mb-4">
           <div className="flex-1">
-            <div className="flex justify-between mb-1">
-              <span className="text-[10px] text-white/40">{nutrientLabel[primaryNutrient]} uptake reduction</span>
-              <span className="text-[10px] font-bold" style={{ color }}>
+            <div className="flex justify-between mb-2">
+              <span className="section-label">{nutrientLabel[primaryNutrient]} uptake reduction</span>
+              <span className="text-sm font-extrabold" style={{ color }}>
                 {confirmed.uptakeReductionMin}–{confirmed.uptakeReductionMax}%
               </span>
             </div>
-            <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(17,17,17,0.08)' }}>
               <motion.div
                 className="h-full rounded-full"
-                style={{ background: `linear-gradient(to right, ${color}88, ${color})` }}
+                style={{ background: color }}
                 initial={{ width: '0%' }}
                 animate={{ width: `${confirmed.uptakeReductionMax}%` }}
                 transition={{ duration: 1.2, delay: delay + 0.4, ease: 'easeOut' }}
@@ -108,10 +101,7 @@ export default function StressNarrativeCard({ npkResult, climate, delay = 0.6 }:
           </div>
         </div>
 
-        {/* Citation */}
-        <p className="text-[9px] text-white/25 leading-snug">
-          Source: {confirmed.citation}
-        </p>
+        <p className="section-label">Source: {confirmed.citation}</p>
       </motion.div>
     </GlassCard>
   );

@@ -14,40 +14,38 @@ const iconMap: Record<string, typeof Droplets> = {
   Siren,
 };
 
-const nutrientColorMap: Record<string, { color: string, className: string }> = {
-  nitrogen: { color: 'var(--color-nitrogen)', className: 'bg-green-500/20 text-green-400' },
-  phosphorus: { color: 'var(--color-phosphorus)', className: 'bg-blue-500/20 text-blue-400' },
-  potassium: { color: 'var(--color-potassium)', className: 'bg-orange-500/20 text-orange-400' },
+const nutrientColors: Record<string, string> = {
+  nitrogen: '#2D5A27',
+  phosphorus: '#4A7A44',
+  potassium: '#6B9165',
 };
 
 export default function ActionPlanCard({ plan, delay = 0 }: Props) {
   const Icon = iconMap[plan.icon] || Droplets;
-  const nutrientStyle = nutrientColorMap[plan.nutrient] || nutrientColorMap.nitrogen;
+  const color = nutrientColors[plan.nutrient] || '#2D5A27';
 
   return (
-    <GlassCard delay={delay} className="p-5 mb-4">
+    <GlassCard delay={delay} className="!p-5">
       <div className="flex items-start gap-4">
         <motion.div
-          className="p-2 rounded-lg shrink-0"
-          style={{ backgroundColor: `${nutrientStyle.color.replace(')',', 0.1)').replace('rgb(','rgba(')}`}}
+          className="p-3 rounded-xl shrink-0"
+          style={{ backgroundColor: `${color}12` }}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: delay + 0.15, type: 'spring', stiffness: 400, damping: 10 }}
         >
-          <Icon className="w-4 h-4" style={{ color: nutrientStyle.color }} />
+          <Icon className="w-4 h-4" style={{ color }} />
         </motion.div>
 
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-semibold text-white mb-1">{plan.title}</h4>
-          <p className="text-sm text-white/60 leading-relaxed mb-3">{plan.description}</p>
+          <h4 className="app-label mb-2">{plan.title}</h4>
+          <p className="app-text mb-3" style={{ lineHeight: 1.55 }}>
+            {plan.description}
+          </p>
 
           <div className="flex flex-wrap gap-2">
-            <span className="text-xs font-medium px-2 py-1 rounded-md bg-white/10 text-white/70 border-white/20">
-              {plan.rate}
-            </span>
-            <span className="text-xs font-medium px-2 py-1 rounded-md bg-white/10 text-white/70 border-white/20">
-              {plan.timing}
-            </span>
+            <span className="app-chip">{plan.rate}</span>
+            <span className="app-chip">{plan.timing}</span>
           </div>
         </div>
       </div>

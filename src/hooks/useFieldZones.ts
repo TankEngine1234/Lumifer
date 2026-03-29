@@ -13,89 +13,38 @@ export interface FieldZonesResult {
   region: string;
 }
 
-function mapGeeLabel(geeLabel: string): SeverityLevel {
-  if (geeLabel === 'LOW') return 'severe';
-  if (geeLabel === 'MEDIUM') return 'moderate';
+interface GeoProperties {
+  label?: string;
+  mean_ndvi?: number | string;
+  ndvi?: number | string;
+  area_ha?: number | string;
+  priority?: number | string;
+  featureId?: string | number;
+  'system:index'?: string;
+}
+
+function mapLabel(label: string): SeverityLevel {
+  if (label === 'LOW') return 'severe';
+  if (label === 'MEDIUM') return 'moderate';
   return 'low';
 }
 
-function buildDescription(geeLabel: string, meanNdvi: number, areaHa: number): string {
+function buildDescription(label: string, meanNdvi: number, areaHa: number): string {
   const area = areaHa.toFixed(1);
   const ndvi = meanNdvi.toFixed(2);
-  if (geeLabel === 'LOW') {
+  if (label === 'LOW') {
     return `Critical chlorophyll deficit across ${area} ha — NDVI ${ndvi} indicates severe stress`;
   }
-  if (geeLabel === 'MEDIUM') {
+  if (label === 'MEDIUM') {
     return `Moderate vegetation stress across ${area} ha — nutrient imbalance likely`;
   }
   return `Active crop field, ${area} ha — healthy canopy detected`;
 }
 
-interface RawField {
-  id: string;
-  mean_ndvi: number;
-  gee_label: string;
-  area_ha: number;
-  priority: number;
-  bounds: [number, number, number, number];
-}
-
-interface FieldZonesFile {
-  meta?: { region?: string };
-  center: [number, number];
-  zoom: number;
-  fields: RawField[];
-}
-
-function parsePolygons(fields: RawField[]): FieldPolygon[] {
-  return fields.map(raw => ({
-    id: raw.id,
-    meanNdvi: raw.mean_ndvi,
-    geeLabel: raw.gee_label as 'LOW' | 'MEDIUM' | 'HIGH',
-    severity: mapGeeLabel(raw.gee_label),
-    areaHa: raw.area_ha,
-    priority: raw.priority,
-    bounds: raw.bounds,
-  }));
-}
-
-function derivePriorityZones(fields: RawField[]): FieldZone[] {
-  const stressed = fields
-    .filter(f => f.gee_label === 'LOW' || f.gee_label === 'MEDIUM')
-    .sort((a, b) => b.priority - a.priority)
-    .slice(0, 8);
-
-  return stressed.map((raw, i) => {
-    const [west, south, east, north] = raw.bounds;
-    return {
-      id: `pin-${raw.id}`,
-      label: `Field HV-${String(i + 1).padStart(2, '0')}`,
-      description: buildDescription(raw.gee_label, raw.mean_ndvi, raw.area_ha),
-      ndviValue: raw.mean_ndvi,
-      severity: mapGeeLabel(raw.gee_label),
-      position: { x: 50, y: 50 },
-      size: { width: 20, height: 15 },
-      lng: (west + east) / 2,
-      lat: (south + north) / 2,
-    };
-  });
-}
-
-// Default farm bounds (Imperial Valley, Holtville)
-const DEFAULT_BBOX = { west: -115.39, south: 32.84, east: -115.33, north: 32.89 };
-
-const useGeeApi = import.meta.env.VITE_USE_GEE_API === 'true';
-
-function buildResult(file: FieldZonesFile): FieldZonesResult {
-  return {
-    zones: derivePriorityZones(file.fields),
-    polygons: parsePolygons(file.fields),
-    center: file.center,
-    zoom: file.zoom,
-    status: 'success',
-    region: file.meta?.region ?? 'Imperial Valley, CA',
-  };
-}
+// Imperial Valley farm center/zoom
+const FIELD_CENTER: [number, number] = [-115.36, 32.865];
+const FIELD_ZOOM = 13;
+const REGION = 'Imperial Valley, CA';
 
 export function useFieldZones(): FieldZonesResult {
   const [result, setResult] = useState<FieldZonesResult>({
@@ -104,59 +53,114 @@ export function useFieldZones(): FieldZonesResult {
     center: FALLBACK_CENTER,
     zoom: FALLBACK_ZOOM,
     status: 'loading',
-    region: 'Brazos County, TX',
+    region: REGION,
   });
 
   useEffect(() => {
     let cancelled = false;
 
-    const fallbackResult: FieldZonesResult = {
-      zones: fallbackZones,
-      polygons: [],
-      center: FALLBACK_CENTER,
-      zoom: FALLBACK_ZOOM,
-      status: 'error',
-      region: 'Brazos County, TX',
-    };
-
-    async function load() {
-      // Try 1: Live GEE API (when enabled)
-      if (useGeeApi) {
-        try {
-          const { west, south, east, north } = DEFAULT_BBOX;
-          const url = `/api/fields?west=${west}&south=${south}&east=${east}&north=${north}`;
-          const r = await fetch(url);
-          if (r.ok) {
-            const file = await r.json() as FieldZonesFile;
-            if (!cancelled) setResult(buildResult(file));
-            return;
-          }
-        } catch {
-          // API unavailable — fall through to static JSON
-        }
-      }
-
-      // Try 2: Static JSON from public/
-      try {
-        const r = await fetch('/field-zones.json');
+    fetch('/field-zones.geojson')
+      .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const file = await r.json() as FieldZonesFile;
-        if (!cancelled) setResult(buildResult(file));
-        return;
-      } catch {
-        // Static file also unavailable
-      }
+        return r.json() as Promise<GeoJSON.FeatureCollection<GeoJSON.Geometry | null, GeoProperties>>;
+      })
+      .then(geojson => {
+        if (cancelled) return;
 
-      // Try 3: Hardcoded fallback
-      console.warn(
-        '[useFieldZones] All data sources failed. ' +
-        'Run `node server/scripts/generate-field-zones.js` to generate real field data, ' +
-        'or set VITE_USE_GEE_API=true and start the server.'
-      );
-      if (!cancelled) setResult(fallbackResult);
-    }
+        const features = geojson.features ?? [];
 
-    load();
+        const polygons: FieldPolygon[] = features.map((f, i) => {
+          const props = f.properties ?? {};
+          const label = String(props.label ?? 'HIGH');
+          const meanNdvi = parseFloat(String(props.mean_ndvi ?? props.ndvi ?? '0'));
+          const areaHa = parseFloat(String(props.area_ha ?? '0'));
+          const priority = parseFloat(String(props.priority ?? '0'));
+          const id = String(props.featureId ?? props['system:index'] ?? i);
+
+          let bounds: [number, number, number, number] = [-115.39, 32.84, -115.33, 32.89];
+          if (f.geometry?.type === 'Polygon') {
+            const coords = (f.geometry as GeoJSON.Polygon).coordinates[0];
+            const lngs = coords.map(c => c[0]);
+            const lats = coords.map(c => c[1]);
+            bounds = [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
+          } else if (f.geometry?.type === 'MultiPolygon') {
+            const all = (f.geometry as GeoJSON.MultiPolygon).coordinates.flat(2);
+            const lngs = all.map(c => c[0]);
+            const lats = all.map(c => c[1]);
+            bounds = [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
+          }
+
+          return {
+            id,
+            meanNdvi: isFinite(meanNdvi) ? meanNdvi : 0,
+            geeLabel: label as 'LOW' | 'MEDIUM' | 'HIGH',
+            severity: mapLabel(label),
+            areaHa: isFinite(areaHa) ? areaHa : 0,
+            priority: isFinite(priority) ? priority : 0,
+            geometry: f.geometry,
+            bounds,
+          };
+        });
+
+        const zones: FieldZone[] = features
+          .filter(f => {
+            const l = String(f.properties?.label ?? '');
+            return l === 'LOW' || l === 'MEDIUM';
+          })
+          .sort((a, b) => {
+            const pa = parseFloat(String(a.properties?.priority ?? '0'));
+            const pb = parseFloat(String(b.properties?.priority ?? '0'));
+            return pb - pa;
+          })
+          .slice(0, 8)
+          .map((f, i) => {
+            const props = f.properties ?? {};
+            const label = String(props.label ?? 'HIGH');
+            const meanNdvi = parseFloat(String(props.mean_ndvi ?? props.ndvi ?? '0'));
+            const areaHa = parseFloat(String(props.area_ha ?? '0'));
+            let lng = FIELD_CENTER[0];
+            let lat = FIELD_CENTER[1];
+            if (f.geometry?.type === 'Polygon') {
+              const coords = (f.geometry as GeoJSON.Polygon).coordinates[0];
+              const lngs = coords.map(c => c[0]);
+              const lats = coords.map(c => c[1]);
+              lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+              lat = (Math.min(...lats) + Math.max(...lats)) / 2;
+            }
+            return {
+              id: `pin-${String(props.featureId ?? props['system:index'] ?? i)}`,
+              label: `Field HV-${String(i + 1).padStart(2, '0')}`,
+              description: buildDescription(label, isFinite(meanNdvi) ? meanNdvi : 0, isFinite(areaHa) ? areaHa : 0),
+              ndviValue: isFinite(meanNdvi) ? meanNdvi : 0,
+              severity: mapLabel(label),
+              position: { x: 50, y: 50 },
+              size: { width: 20, height: 15 },
+              lng,
+              lat,
+            };
+          });
+
+        setResult({
+          zones,
+          polygons,
+          center: FIELD_CENTER,
+          zoom: FIELD_ZOOM,
+          status: 'success',
+          region: REGION,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setResult({
+            zones: fallbackZones,
+            polygons: [],
+            center: FALLBACK_CENTER,
+            zoom: FALLBACK_ZOOM,
+            status: 'error',
+            region: REGION,
+          });
+        }
+      });
 
     return () => { cancelled = true; };
   }, []);

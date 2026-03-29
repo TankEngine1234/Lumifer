@@ -15,9 +15,9 @@ function dateLabel(dateStr: string): string {
 }
 
 const PERIODS: LineGraphPeriod[] = [
-  { label: '90 days', color: 'bg-green-500' },
-  { label: '30 days', color: 'bg-blue-400' },
-  { label: '14 days', color: 'bg-orange-400' },
+  { label: '90 days', color: 'bg-[#2D5A27]' },
+  { label: '30 days', color: 'bg-[#4A7A44]' },
+  { label: '14 days', color: 'bg-[#6B9165]' },
 ];
 
 export default function ClimateChart({ climate }: Props) {
@@ -29,7 +29,6 @@ export default function ClimateChart({ climate }: Props) {
   const allDates = Object.keys(T2M_MAX).sort();
   if (allDates.length === 0) return null;
 
-  // Slice based on selected period
   const sliceCount = selectedPeriod === '14 days' ? 14 : selectedPeriod === '30 days' ? 30 : 90;
   const dates = allDates.slice(-sliceCount);
 
@@ -37,10 +36,8 @@ export default function ClimateChart({ climate }: Props) {
   const tminVals = dates.map(d => T2M_MIN[d]);
   const precipVals = dates.map(d => PRECTOTCORR[d]);
   const labels = dates.map(dateLabel);
-
   const tMax = Math.max(...tmaxVals);
 
-  // Compute peak / avg for metrics
   const peakTemp = Math.max(...tmaxVals).toFixed(1);
   const avgTemp = (tmaxVals.reduce((a, b) => a + b, 0) / tmaxVals.length).toFixed(1);
   const totalRain = precipVals.reduce((a, b) => a + b, 0).toFixed(0);
@@ -51,62 +48,58 @@ export default function ClimateChart({ climate }: Props) {
       {
         label: 'Tmax',
         values: tmaxVals,
-        color: '#fb923c',
-        dotColor: 'rgba(251,146,60,0.85)',
+        color: '#2D5A27',
+        dotColor: 'rgba(45,90,39,0.9)',
       },
       {
         label: 'Tmin',
         values: tminVals,
-        color: 'rgba(251,146,60,0.30)',
-        dotColor: 'rgba(251,146,60,0.4)',
+        color: 'rgba(45,90,39,0.42)',
+        dotColor: 'rgba(45,90,39,0.55)',
       },
     ],
     metrics: [
-      { label: 'Peak temp', value: `${peakTemp}°C`, color: 'border-red-400/60' },
-      { label: 'Avg temp', value: `${avgTemp}°C`, color: 'border-white/20' },
-      { label: 'Total rain', value: `${totalRain}mm`, color: 'border-cyan-400/60' },
+      { label: 'Peak temp', value: `${peakTemp}°C`, color: 'border-[#111111]', accent: '#111111' },
+      { label: 'Avg temp', value: `${avgTemp}°C`, color: 'border-[#2D5A27]', accent: '#2D5A27' },
+      { label: 'Total rain', value: `${totalRain}mm`, color: 'border-[#4A7A44]', accent: '#4A7A44' },
     ],
   };
 
-  // Build highlight bands for heat days (T > 34°C)
   const highlightBands: { startIdx: number; endIdx: number; color: string }[] = [];
   let bandStart = -1;
   dates.forEach((date, i) => {
     if (T2M_MAX[date] > 34) {
       if (bandStart === -1) bandStart = i;
-    } else {
-      if (bandStart !== -1) {
-        highlightBands.push({ startIdx: bandStart, endIdx: i - 1, color: 'rgba(248,113,113,0.12)' });
-        bandStart = -1;
-      }
+    } else if (bandStart !== -1) {
+      highlightBands.push({ startIdx: bandStart, endIdx: i - 1, color: 'rgba(17,17,17,0.06)' });
+      bandStart = -1;
     }
   });
   if (bandStart !== -1) {
-    highlightBands.push({ startIdx: bandStart, endIdx: dates.length - 1, color: 'rgba(248,113,113,0.12)' });
+    highlightBands.push({ startIdx: bandStart, endIdx: dates.length - 1, color: 'rgba(17,17,17,0.06)' });
   }
 
-  // Threshold line only if relevant
   const showThreshold = tMax > 30;
 
   return (
     <LineGraphStatistics
       title="Climate Data"
-      subtitle={`NASA POWER · Brazos County TX · ${sliceCount}-day window`}
+      subtitle={`NASA POWER • Brazos County TX • ${sliceCount}-day window`}
       periods={PERIODS}
       selectedPeriod={selectedPeriod}
       onPeriodChange={setSelectedPeriod}
       data={graphData}
       barSeries={{
         values: precipVals,
-        rainColor: 'rgba(96,165,250,0.70)',
-        dryColor: 'rgba(255,255,255,0.06)',
+        rainColor: 'rgba(74,122,68,0.76)',
+        dryColor: 'rgba(17,17,17,0.08)',
         rainThreshold: 1.0,
         label: 'Precip (mm)',
       }}
       thresholdLine={showThreshold ? {
         value: 34,
         label: '34°C stress',
-        color: '#f87171',
+        color: '#111111',
       } : undefined}
       highlightBands={highlightBands}
     />

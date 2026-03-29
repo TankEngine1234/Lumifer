@@ -125,6 +125,7 @@ export interface FieldPolygon {
   severity: SeverityLevel;
   areaHa: number;
   priority: number;
+  geometry?: GeoJSON.Geometry | null;
   bounds: [number, number, number, number]; // [west, south, east, north]
 }
 
