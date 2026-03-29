@@ -1,0 +1,11 @@
+{
+  "source": "Rice NPK Deficiency (Kaggle: guy007/nutrientdeficiencysymptomsinrice) + PlantVillage healthy",
+  "class_counts": {
+    "nitrogen_deficient": 0,
+    "phosphorus_deficient": 0,
+    "potassium_deficient": 0,
+    "healthy": 500
+  },
+  "total": 500,
+  "version": "v2"
+}

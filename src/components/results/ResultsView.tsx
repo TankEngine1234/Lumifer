@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Satellite } from 'lucide-react';
+import { Satellite, CheckCircle } from 'lucide-react';
 import type { NPKResult } from '../../types';
 import { staggerContainer, staggerItem } from '../../animations/variants';
 import { springDefault } from '../../animations/springs';
@@ -15,19 +15,20 @@ interface Props {
 }
 
 export default function ResultsView({ result, onNASAContext }: Props) {
+  const allOptimal = result.nitrogen.level === 'optimal'
+    && result.phosphorus.level === 'optimal'
+    && result.potassium.level === 'optimal';
+
   const deficiencies = (
     ['nitrogen', 'phosphorus', 'potassium'] as const
   )
-    .filter((n) => result[n].level === 'deficient')
+    .filter((n) => result[n].level !== 'optimal')
     .map((n) => ({ nutrient: n, severity: result.severity }));
 
-  const actionPlans = getActionPlansForResult(
-    deficiencies.length > 0
-      ? deficiencies
-      : [{ nutrient: 'nitrogen', severity: result.severity }]
-  );
+  const actionPlans = deficiencies.length > 0
+    ? getActionPlansForResult(deficiencies)
+    : [];
 
-  // Show at most 2 action plans so everything fits
   const visiblePlans = actionPlans.slice(0, 2);
 
   return (
@@ -72,25 +73,41 @@ export default function ResultsView({ result, onNASAContext }: Props) {
 
         {/* Severity card */}
         <motion.div variants={staggerItem} className="mb-3">
-          <SeverityCard severity={result.severity} delay={1.4} />
+          <SeverityCard severity={result.severity} allOptimal={allOptimal} delay={1.4} />
         </motion.div>
 
         {/* Action plan cards */}
         <motion.div variants={staggerItem} className="mb-3">
           <h3 className="text-[10px] font-bold text-white/50 uppercase tracking-[0.15em] mb-2 px-0.5">
-            Recommended Actions
+            {allOptimal ? 'Assessment' : 'Recommended Actions'}
           </h3>
-          <div className="space-y-2">
-            {visiblePlans.map((plan, i) => (
-              <ActionPlanCard key={plan.id} plan={plan} delay={1.8 + i * 0.25} />
-            ))}
-          </div>
+          {allOptimal ? (
+            <div className="flex items-start gap-3 p-3 rounded-2xl" style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}>
+              <div className="p-2 rounded-lg" style={{ backgroundColor: 'rgba(74,222,128,0.15)' }}>
+                <CheckCircle className="w-5 h-5 text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Healthy — No Action Needed</p>
+                <p className="text-xs text-white/60 mt-0.5 leading-relaxed">
+                  All nutrient levels are within optimal range. Continue current management practices and monitor at next growth stage.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {visiblePlans.map((plan, i) => (
+                <ActionPlanCard key={plan.id} plan={plan} delay={1.8 + i * 0.25} />
+              ))}
+            </div>
+          )}
         </motion.div>
 
-        {/* Yield impact card */}
-        <motion.div variants={staggerItem} className="mb-3">
-          <YieldImpactCard result={result} delay={2.4} />
-        </motion.div>
+        {/* Yield impact card — only show if there's a deficiency */}
+        {!allOptimal && (
+          <motion.div variants={staggerItem} className="mb-3">
+            <YieldImpactCard result={result} delay={2.4} />
+          </motion.div>
+        )}
       </div>
 
       {/* NASA context CTA — pinned to bottom, always visible */}

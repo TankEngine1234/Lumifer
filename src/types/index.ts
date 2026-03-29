@@ -67,6 +67,10 @@ export interface VegetationIndices {
 export interface ColorData {
   meanRGB: { r: number; g: number; b: number };
   meanHSV: { h: number; s: number; v: number };
+  // Per-pixel symptom fractions (0-1): what % of leaf pixels show each symptom
+  purpleFrac: number; // Anthocyanin (P deficiency indicator)
+  brownFrac: number;  // Necrosis (K deficiency indicator)
+  yellowFrac: number; // Chlorosis (N deficiency indicator)
 }
 
 export interface ProcessingResult {

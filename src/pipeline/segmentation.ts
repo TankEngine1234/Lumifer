@@ -1,6 +1,6 @@
 // Leaf segmentation using OpenCV.js
-// Pipeline: RGB → HSV green mask → Laplacian focus mask → combine → morphology → largest contour
-// The focus mask separates the sharp in-focus leaf from blurred backgrounds of similar color.
+// Pipeline: RGB → HSV vegetation mask (green + yellow + brown) → Laplacian focus → combine
+// Supports both healthy green leaves AND stressed/dead brown/yellow tissue.
 
 declare const cv: any; // OpenCV.js global
 
@@ -24,7 +24,7 @@ export function segmentLeaf(imageData: ImageData): SegmentationResult {
     };
   }
 
-  const mats: any[] = []; // Track all Mats for cleanup
+  const mats: any[] = [];
   const mat = (m: any) => { mats.push(m); return m; };
 
   try {
@@ -34,15 +34,32 @@ export function segmentLeaf(imageData: ImageData): SegmentationResult {
     cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
     cv.cvtColor(rgb, hsvImg, cv.COLOR_RGB2HSV);
 
-    // ── Step 1: Green vegetation mask (broad) ──
-    const low = mat(new cv.Mat(hsvImg.rows, hsvImg.cols, hsvImg.type(), [25, 30, 30, 0]));
-    const high = mat(new cv.Mat(hsvImg.rows, hsvImg.cols, hsvImg.type(), [95, 255, 255, 255]));
+    // ── Step 1: Multi-range vegetation mask ──
+    // Green vegetation: H 25-95, S 30+, V 30+
+    const greenLow = mat(new cv.Mat(hsvImg.rows, hsvImg.cols, hsvImg.type(), [25, 30, 30, 0]));
+    const greenHigh = mat(new cv.Mat(hsvImg.rows, hsvImg.cols, hsvImg.type(), [95, 255, 255, 255]));
     const greenMask = mat(new cv.Mat());
-    cv.inRange(hsvImg, low, high, greenMask);
+    cv.inRange(hsvImg, greenLow, greenHigh, greenMask);
+
+    // Yellow/chlorotic tissue: H 15-35, S 40+, V 60+
+    const yellowLow = mat(new cv.Mat(hsvImg.rows, hsvImg.cols, hsvImg.type(), [15, 40, 60, 0]));
+    const yellowHigh = mat(new cv.Mat(hsvImg.rows, hsvImg.cols, hsvImg.type(), [35, 255, 255, 255]));
+    const yellowMask = mat(new cv.Mat());
+    cv.inRange(hsvImg, yellowLow, yellowHigh, yellowMask);
+
+    // Brown/necrotic tissue: H 5-30, S 15+, V 30+ (wide range — dead leaves can be very desaturated)
+    const brownLow = mat(new cv.Mat(hsvImg.rows, hsvImg.cols, hsvImg.type(), [5, 15, 30, 0]));
+    const brownHigh = mat(new cv.Mat(hsvImg.rows, hsvImg.cols, hsvImg.type(), [30, 220, 220, 255]));
+    const brownMask = mat(new cv.Mat());
+    cv.inRange(hsvImg, brownLow, brownHigh, brownMask);
+
+    // Combine all vegetation masks
+    const vegMask = mat(new cv.Mat());
+    cv.bitwise_or(greenMask, yellowMask, vegMask);
+    const vegMask2 = mat(new cv.Mat());
+    cv.bitwise_or(vegMask, brownMask, vegMask2);
 
     // ── Step 2: Focus/sharpness mask (Laplacian) ──
-    // Blurred backgrounds have low high-frequency content.
-    // The Laplacian highlights in-focus edges — threshold it to keep only sharp regions.
     const gray = mat(new cv.Mat());
     cv.cvtColor(rgb, gray, cv.COLOR_RGB2GRAY);
 
@@ -52,25 +69,22 @@ export function segmentLeaf(imageData: ImageData): SegmentationResult {
     const absLap = mat(new cv.Mat());
     cv.convertScaleAbs(laplacian, absLap);
 
-    // Blur the Laplacian response to get a smooth focus map
     const focusMap = mat(new cv.Mat());
     cv.GaussianBlur(absLap, focusMap, new cv.Size(31, 31), 0);
 
-    // Adaptive threshold: use Otsu to find the natural split between sharp and blurry
     const focusMask = mat(new cv.Mat());
     cv.threshold(focusMap, focusMask, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
 
-    // Dilate the focus mask to include leaf edges that might be slightly soft
-    const dilateKernel = mat(cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(15, 15)));
+    const dilateKernel = mat(cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(21, 21)));
     const focusDilated = mat(new cv.Mat());
     cv.dilate(focusMask, focusDilated, dilateKernel);
 
-    // ── Step 3: Combine green + focus ──
+    // ── Step 3: Combine vegetation + focus ──
     const combined = mat(new cv.Mat());
-    cv.bitwise_and(greenMask, focusDilated, combined);
+    cv.bitwise_and(vegMask2, focusDilated, combined);
 
     // ── Step 4: Morphological cleanup ──
-    const closeKernel = mat(cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(9, 9)));
+    const closeKernel = mat(cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(11, 11)));
     const closed = mat(new cv.Mat());
     cv.morphologyEx(combined, closed, cv.MORPH_CLOSE, closeKernel);
 
@@ -93,21 +107,19 @@ export function segmentLeaf(imageData: ImageData): SegmentationResult {
       }
     }
 
-    // Sanity check: if the largest contour is >90% of the image, segmentation failed
-    // (means the background wasn't separated). Fall back to center crop.
     const imageArea = imageData.width * imageData.height;
     const contourRatio = largestArea / imageArea;
 
     const finalMask = mat(cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1));
     let bounds = { x: 0, y: 0, width: imageData.width, height: imageData.height };
 
-    if (contours.size() > 0 && contourRatio < 0.90) {
+    if (contours.size() > 0 && contourRatio < 0.85) {
       cv.drawContours(finalMask, contours, largestIdx, new cv.Scalar(255, 255, 255, 255), -1);
       const rect = cv.boundingRect(contours.get(largestIdx));
       bounds = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
       console.log(`[Lumifer] 🔬 Segmented leaf: ${(contourRatio * 100).toFixed(1)}% of image, bounds ${rect.width}x${rect.height}`);
     } else {
-      // Fallback: use center 60% of the image as a rough crop
+      // Fallback: center 60% crop
       const cx = Math.floor(imageData.width * 0.2);
       const cy = Math.floor(imageData.height * 0.2);
       const cw = Math.floor(imageData.width * 0.6);

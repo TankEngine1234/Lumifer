@@ -5,32 +5,35 @@ import { loadNPKModel, predict } from '../models/loadModel';
 import { fallbackPredict } from '../models/fallbackInference';
 import { yieldImpactByDeficiency } from '../data/nutrientThresholds';
 
-// Compute a "health score" from vegetation indices.
-// A clearly healthy leaf (high ExG, positive NGRDI, positive VARI, high saturation)
-// should pull all deficiency confidences down toward 0.
-function computeHealthScore(indices: VegetationIndices, colorData: ColorData): number {
-  const { exg, ngrdi, vari } = indices;
-  const { meanHSV } = colorData;
+/**
+ * Fuse model predictions with physics-based color index predictions.
+ *
+ * Strategy: color indices are the foundation (domain-invariant, interpretable),
+ * model adjusts when it has strong signal. This avoids two failure modes:
+ *   1. Model false-positives on healthy leaves (PlantVillage distribution shift)
+ *   2. Model false-negatives on dead/brown tissue (out-of-distribution)
+ */
+function fuseConfidences(
+  modelConfs: [number, number, number],
+  indexConfs: [number, number, number],
+): [number, number, number] {
+  return modelConfs.map((modelC, i) => {
+    const indexC = indexConfs[i];
 
-  let score = 0;
+    // Both agree on deficiency → boost (high confidence)
+    if (modelC > 0.4 && indexC > 0.3) {
+      return Math.min((modelC + indexC) / 1.5, 1.0);
+    }
 
-  // ExG > 0.15 = strong green canopy
-  if (exg > 0.15) score += 0.25;
-  else if (exg > 0.08) score += 0.1;
+    // Both agree on healthy → stay low
+    if (modelC < 0.2 && indexC < 0.2) {
+      return Math.min(modelC, indexC);
+    }
 
-  // NGRDI > 0.05 = more green than red
-  if (ngrdi > 0.05) score += 0.25;
-  else if (ngrdi > 0.0) score += 0.1;
-
-  // VARI > 0.1 = healthy vegetation
-  if (vari > 0.1) score += 0.25;
-  else if (vari > 0.0) score += 0.1;
-
-  // High saturation + green hue = healthy leaf
-  if (meanHSV.s > 0.4 && meanHSV.h > 60 && meanHSV.h < 160) score += 0.25;
-  else if (meanHSV.s > 0.3) score += 0.1;
-
-  return Math.min(score, 1.0);
+    // Disagreement → weighted average, favor indices (0.6) over model (0.4)
+    // because indices are physics-based and model has distribution shift issues
+    return indexC * 0.6 + modelC * 0.4;
+  }) as [number, number, number];
 }
 
 export function useInference() {
@@ -61,15 +64,18 @@ export function useInference() {
     ): Promise<NPKResult> => {
 
       try {
-        // Compute physics-based health score from color indices
-        const healthScore = computeHealthScore(indices, colorData);
-        console.log(`[Lumifer] 🌿 Health score: ${healthScore.toFixed(2)} (1.0 = clearly healthy)`);
+        // Always compute the physics-based index predictions first
+        const fb = fallbackPredict(indices, colorData);
+        console.log('[Lumifer] 🌿 Index-based predictions:', {
+          N: fb.nitrogen.confidence.toFixed(4),
+          P: fb.phosphorus.confidence.toFixed(4),
+          K: fb.potassium.confidence.toFixed(4),
+        });
 
         let nConf: number, pConf: number, kConf: number;
 
         if (useFallback || !model || !tensor) {
-          console.log('[Lumifer] ⚠️ FALLBACK inference', { useFallback, hasModel: !!model, hasTensor: !!tensor });
-          const fb = fallbackPredict(indices, colorData);
+          console.log('[Lumifer] ⚠️ FALLBACK only (no model)', { useFallback, hasModel: !!model, hasTensor: !!tensor });
           return fb;
         }
 
@@ -78,32 +84,14 @@ export function useInference() {
         const [rawN, rawP, rawK] = rawOutputs;
         console.log('[Lumifer] 🧠 Raw model sigmoid:', { N: rawN.toFixed(4), P: rawP.toFixed(4), K: rawK.toFixed(4) });
 
-        // Hybrid fusion: if color indices say "healthy", dampen model deficiency scores.
-        // The model was trained on PlantVillage disease proxies and can false-positive
-        // on healthy leaves. The color indices are physics-based and domain-invariant.
-        //
-        // healthScore 1.0 → multiply model outputs by 0.15 (strong override)
-        // healthScore 0.5 → multiply by ~0.57
-        // healthScore 0.0 → no dampening (trust model fully)
-        const dampen = 1 - healthScore * 0.85;
-        nConf = rawN * dampen;
-        pConf = rawP * dampen;
-        kConf = rawK * dampen;
-
-        // Also get fallback scores — if fallback says deficient AND model agrees, boost
-        const fb = fallbackPredict(indices, colorData);
-        const fbN = fb.nitrogen.confidence;
-        const fbP = fb.phosphorus.confidence;
-        const fbK = fb.potassium.confidence;
-
-        // Agreement boost: when both model and indices detect deficiency, trust it more
-        if (fbN > 0.4 && rawN > 0.3) nConf = Math.max(nConf, (rawN + fbN) / 2);
-        if (fbP > 0.4 && rawP > 0.3) pConf = Math.max(pConf, (rawP + fbP) / 2);
-        if (fbK > 0.4 && rawK > 0.3) kConf = Math.max(kConf, (rawK + fbK) / 2);
+        // Fuse model + index predictions
+        [nConf, pConf, kConf] = fuseConfidences(
+          [rawN, rawP, rawK],
+          [fb.nitrogen.confidence, fb.phosphorus.confidence, fb.potassium.confidence],
+        );
 
         console.log('[Lumifer] Fused confidences:', {
           N: nConf.toFixed(4), P: pConf.toFixed(4), K: kConf.toFixed(4),
-          dampen: dampen.toFixed(3),
         });
 
         const getLevel = (conf: number) =>

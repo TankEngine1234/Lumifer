@@ -1,163 +1,254 @@
 """
-Prepare PlantVillage dataset for NPK deficiency model training.
+Prepare REAL nutrient deficiency datasets for NPK model training.
 
-Downloads a curated subset of PlantVillage images and maps disease labels
-to NPK deficiency categories:
-  - Yellowing/chlorosis → Nitrogen deficiency
-  - Purple/reddish discoloration → Phosphorus deficiency
-  - Brown leaf edges/necrosis → Potassium deficiency
-  - Healthy → All nutrients adequate
+Downloads two complementary datasets with actual NPK deficiency labels:
+  1. Rice NPK Deficiency (Kaggle: guy007/nutrientdeficiencysymptomsinrice)
+     - ~440 N, ~333 P, ~383 K images of rice leaves
+  2. Coffee Leaf NPK (Mendeley: CoLeaf-DB) — optional supplement
 
 Usage:
-  pip install tensorflow kagglehub pillow
+  pip install kagglehub pillow
   python scripts/prepare_dataset.py
 
 Output:
-  data/training/ directory with class subdirectories
+  data/training_v2/ directory with class subdirectories
 """
 
 import os
 import shutil
 import json
 from pathlib import Path
+from PIL import Image
 
-# Try kagglehub first, fall back to manual instructions
 try:
     import kagglehub
     HAS_KAGGLE = True
 except ImportError:
     HAS_KAGGLE = False
 
-# PlantVillage disease-to-NPK mapping
-# Based on visual symptom correlation with nutrient deficiencies
-DISEASE_TO_NPK = {
-    # Nitrogen deficiency analogs (yellowing, chlorosis)
-    'Corn_(maize)___Northern_Leaf_Blight': 'nitrogen_deficient',
-    'Corn_(maize)___Common_rust_': 'nitrogen_deficient',  # Early yellowing stage
-    'Tomato___Leaf_Mold': 'nitrogen_deficient',  # Yellowing pattern
-    'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)': 'nitrogen_deficient',
+OUTPUT_DIR = Path('data/training_v2')
+SAMPLES_PER_CLASS = 600  # cap per class for balance
+IMG_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'}
 
-    # Phosphorus deficiency analogs (purple/red discoloration)
-    'Grape___Black_rot': 'phosphorus_deficient',  # Purple/dark discoloration
-    'Tomato___Septoria_leaf_spot': 'phosphorus_deficient',
-    'Potato___Early_blight': 'phosphorus_deficient',  # Dark concentric rings
-
-    # Potassium deficiency analogs (brown edges, necrosis)
-    'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot': 'potassium_deficient',
-    'Tomato___Early_blight': 'potassium_deficient',  # Brown edge necrosis
-    'Potato___Late_blight': 'potassium_deficient',  # Brown lesions
-    'Tomato___Bacterial_spot': 'potassium_deficient',
-
-    # Healthy baselines
-    'Corn_(maize)___healthy': 'healthy',
-    'Tomato___healthy': 'healthy',
-    'Potato___healthy': 'healthy',
-    'Grape___healthy': 'healthy',
-    'Soybean___healthy': 'healthy',
-}
-
-# Target samples per class
-SAMPLES_PER_CLASS = 500
-OUTPUT_DIR = Path('data/training')
-DEMO_OUTPUT_DIR = Path('public/assets/leaves')
+# Mapping from dataset folder names to our standard classes
+# These will be populated per-dataset below
+CLASSES = ['nitrogen_deficient', 'phosphorus_deficient', 'potassium_deficient', 'healthy']
 
 
-def download_plantvillage():
-    """Download PlantVillage dataset via kagglehub."""
-    if HAS_KAGGLE:
-        print("Downloading PlantVillage dataset via kagglehub...")
-        path = kagglehub.dataset_download("abdallahalidev/plantvillage-dataset")
-        return Path(path)
-    else:
-        print("""
-=== Manual Download Required ===
-1. Go to: https://www.kaggle.com/datasets/abdallahalidev/plantvillage-dataset
-2. Download and extract to: data/plantvillage/
-3. Re-run this script
-
-Or install kagglehub: pip install kagglehub
-""")
-        return None
+def is_image(path: Path) -> bool:
+    return path.suffix in IMG_EXTENSIONS
 
 
-def prepare_dataset(source_dir: Path):
-    """Curate PlantVillage images into NPK deficiency classes."""
-    # Create output directories
-    for cls in ['nitrogen_deficient', 'phosphorus_deficient', 'potassium_deficient', 'healthy']:
-        (OUTPUT_DIR / cls).mkdir(parents=True, exist_ok=True)
+def copy_images(src_dir: Path, dest_class: str, prefix: str, max_count: int) -> int:
+    """Copy images from src_dir to OUTPUT_DIR/dest_class/. Returns count copied."""
+    dest_dir = OUTPUT_DIR / dest_class
+    dest_dir.mkdir(parents=True, exist_ok=True)
 
-    DEMO_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    existing = len(list(dest_dir.iterdir()))
+    remaining = max_count - existing
+    if remaining <= 0:
+        return 0
 
-    class_counts = {cls: 0 for cls in set(DISEASE_TO_NPK.values())}
+    images = sorted([f for f in src_dir.iterdir() if is_image(f)])
+    copied = 0
+    for img_path in images[:remaining]:
+        # Validate image is readable
+        try:
+            with Image.open(img_path) as im:
+                im.verify()
+        except Exception:
+            continue
 
-    # Walk through PlantVillage directory structure
-    # Expected: source_dir/color/ClassName/images...
-    color_dir = source_dir / 'plantvillage dataset' / 'color'
-    if not color_dir.exists():
-        # Try alternative paths
-        for candidate in ['color', 'PlantVillage', 'plantvillage']:
-            alt = source_dir / candidate
-            if alt.exists():
-                color_dir = alt
+        dest = dest_dir / f"{prefix}_{img_path.name}"
+        shutil.copy2(img_path, dest)
+        copied += 1
+
+    return copied
+
+
+def prepare_rice_npk():
+    """
+    Rice NPK Deficiency Dataset (Kaggle: guy007/nutrientdeficiencysymptomsinrice)
+    Real nutrient deficiency labels from controlled experiments.
+    Folder structure: NitrogenDeficiency/, PhosphorusDeficiency/, PotassiumDeficiency/
+    """
+    print("\n=== Dataset 1: Rice NPK Deficiency ===")
+
+    # Try kagglehub download
+    source_dir = Path('data/rice-npk')
+    if not source_dir.exists():
+        if HAS_KAGGLE:
+            print("Downloading via kagglehub...")
+            try:
+                path = kagglehub.dataset_download("guy007/nutrientdeficiencysymptomsinrice")
+                source_dir = Path(path)
+                print(f"Downloaded to {source_dir}")
+            except Exception as e:
+                print(f"kagglehub download failed: {e}")
+                print("Please download manually from:")
+                print("  https://www.kaggle.com/datasets/guy007/nutrientdeficiencysymptomsinrice")
+                print(f"  Extract to: data/rice-npk/")
+                return
+        else:
+            print("Please download manually from:")
+            print("  https://www.kaggle.com/datasets/guy007/nutrientdeficiencysymptomsinrice")
+            print(f"  Extract to: data/rice-npk/")
+            print("  Or install kagglehub: pip install kagglehub")
+            return
+
+    # Map folder names to our classes — try various naming patterns
+    folder_mapping = {
+        'nitrogen_deficient': ['NitrogenDeficiency', 'Nitrogen', 'nitrogen', 'N', 'N_def', 'Nitrogen Deficiency'],
+        'phosphorus_deficient': ['PhosphorusDeficiency', 'Phosphorus', 'phosphorus', 'P', 'P_def', 'Phosphorus Deficiency'],
+        'potassium_deficient': ['PotassiumDeficiency', 'Potassium', 'potassium', 'K', 'K_def', 'Potassium Deficiency'],
+    }
+
+    # Find actual directory structure
+    # The dataset might have images directly or in subdirectories
+    candidate_roots = [source_dir]
+    for subdir in source_dir.iterdir():
+        if subdir.is_dir():
+            candidate_roots.append(subdir)
+            for sub2 in subdir.iterdir():
+                if sub2.is_dir():
+                    candidate_roots.append(sub2)
+
+    total = 0
+    for our_class, folder_names in folder_mapping.items():
+        found = False
+        for root in candidate_roots:
+            for folder_name in folder_names:
+                candidate = root / folder_name
+                if candidate.is_dir():
+                    count = copy_images(candidate, our_class, 'rice', SAMPLES_PER_CLASS)
+                    print(f"  {our_class}: {count} images from {candidate}")
+                    total += count
+                    found = True
+                    break
+            if found:
                 break
+        if not found:
+            # Try to find any directory with matching keyword
+            for root in candidate_roots:
+                for d in root.iterdir():
+                    if d.is_dir() and any(kw.lower() in d.name.lower() for kw in folder_names):
+                        count = copy_images(d, our_class, 'rice', SAMPLES_PER_CLASS)
+                        print(f"  {our_class}: {count} images from {d}")
+                        total += count
+                        found = True
+                        break
+                if found:
+                    break
+        if not found:
+            print(f"  {our_class}: NOT FOUND — looked for {folder_names}")
 
-    if not color_dir.exists():
-        print(f"Could not find image directory in {source_dir}")
-        print(f"Contents: {list(source_dir.iterdir())}")
-        return
+    print(f"  Rice NPK total: {total} images")
+    return total
 
-    for disease_dir in sorted(color_dir.iterdir()):
-        if not disease_dir.is_dir():
-            continue
 
-        disease_name = disease_dir.name
-        npk_class = DISEASE_TO_NPK.get(disease_name)
+def prepare_rice_healthy():
+    """
+    Add healthy rice leaf images. Uses PlantVillage rice healthy if available,
+    or healthy images from the Rice NPK dataset.
+    """
+    print("\n=== Healthy Baseline Images ===")
 
-        if npk_class is None:
-            continue
+    # Try PlantVillage healthy images (already downloaded from previous training)
+    pv_healthy_dirs = [
+        Path('data/training/healthy'),  # from old prepare_dataset.py
+        Path('data/plantvillage/plantvillage dataset/color/Rice___healthy'),
+    ]
 
-        if class_counts[npk_class] >= SAMPLES_PER_CLASS:
-            continue
+    for d in pv_healthy_dirs:
+        if d.exists() and any(is_image(f) for f in d.iterdir()):
+            count = copy_images(d, 'healthy', 'pv', SAMPLES_PER_CLASS)
+            print(f"  healthy: {count} images from {d}")
+            return count
 
-        images = sorted(disease_dir.glob('*.jpg')) + sorted(disease_dir.glob('*.JPG'))
-        remaining = SAMPLES_PER_CLASS - class_counts[npk_class]
+    # Fallback: check if rice-npk has a healthy folder
+    rice_dir = Path('data/rice-npk')
+    if rice_dir.exists():
+        for root, dirs, files in os.walk(rice_dir):
+            root_path = Path(root)
+            if any(kw in root_path.name.lower() for kw in ['healthy', 'normal', 'control']):
+                count = copy_images(root_path, 'healthy', 'rice', SAMPLES_PER_CLASS)
+                print(f"  healthy: {count} images from {root_path}")
+                return count
 
-        for img_path in images[:remaining]:
-            dest = OUTPUT_DIR / npk_class / f"{disease_name}_{img_path.name}"
-            shutil.copy2(img_path, dest)
-            class_counts[npk_class] += 1
+    print("  healthy: No healthy images found — will use PlantVillage fallback")
 
-            # Copy first 3 per class to demo assets
-            if class_counts[npk_class] <= 3:
-                demo_name = f"{npk_class}_{class_counts[npk_class]:02d}.jpg"
-                shutil.copy2(img_path, DEMO_OUTPUT_DIR / demo_name)
+    # Download PlantVillage just for healthy images
+    if HAS_KAGGLE:
+        try:
+            path = kagglehub.dataset_download("abdallahalidev/plantvillage-dataset")
+            pv = Path(path)
+            for candidate in ['plantvillage dataset/color', 'color']:
+                color_dir = pv / candidate
+                if color_dir.exists():
+                    total = 0
+                    for folder in color_dir.iterdir():
+                        if folder.is_dir() and 'healthy' in folder.name.lower():
+                            count = copy_images(folder, 'healthy', 'pv', SAMPLES_PER_CLASS)
+                            total += count
+                            if total >= SAMPLES_PER_CLASS:
+                                break
+                    print(f"  healthy: {total} images from PlantVillage")
+                    return total
+        except Exception as e:
+            print(f"  PlantVillage download failed: {e}")
 
-    print("\nDataset prepared:")
-    for cls, count in class_counts.items():
-        print(f"  {cls}: {count} images")
-    print(f"\nTotal: {sum(class_counts.values())} images")
-    print(f"Output: {OUTPUT_DIR}")
-    print(f"Demo assets: {DEMO_OUTPUT_DIR}")
+    return 0
+
+
+def print_summary():
+    """Print final dataset statistics."""
+    print("\n" + "=" * 50)
+    print("DATASET SUMMARY")
+    print("=" * 50)
+
+    total = 0
+    class_counts = {}
+    for cls in CLASSES:
+        cls_dir = OUTPUT_DIR / cls
+        if cls_dir.exists():
+            count = len([f for f in cls_dir.iterdir() if is_image(f)])
+        else:
+            count = 0
+        class_counts[cls] = count
+        total += count
+        status = "✓" if count >= 100 else "⚠️ LOW" if count > 0 else "✗ MISSING"
+        print(f"  {status} {cls}: {count} images")
+
+    print(f"\n  Total: {total} images")
+    print(f"  Output: {OUTPUT_DIR}")
 
     # Save metadata
     metadata = {
-        'source': 'PlantVillage (Kaggle: abdallahalidev/plantvillage-dataset)',
-        'mapping': DISEASE_TO_NPK,
+        'source': 'Rice NPK Deficiency (Kaggle: guy007/nutrientdeficiencysymptomsinrice) + PlantVillage healthy',
         'class_counts': class_counts,
-        'samples_per_class_target': SAMPLES_PER_CLASS,
+        'total': total,
+        'version': 'v2',
     }
     with open(OUTPUT_DIR / 'metadata.json', 'w') as f:
         json.dump(metadata, f, indent=2)
 
+    if total < 200:
+        print("\n⚠️  Dataset is very small. Training may not produce good results.")
+        print("   Make sure the Kaggle download completed successfully.")
+
+    return total
+
 
 if __name__ == '__main__':
-    # Check for existing download
-    local_path = Path('data/plantvillage')
+    # Clean start
+    if OUTPUT_DIR.exists():
+        print(f"Removing existing {OUTPUT_DIR}...")
+        shutil.rmtree(OUTPUT_DIR)
 
-    if local_path.exists():
-        print(f"Using existing dataset at {local_path}")
-        prepare_dataset(local_path)
-    else:
-        source = download_plantvillage()
-        if source:
-            prepare_dataset(source)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    prepare_rice_npk()
+    prepare_rice_healthy()
+    print_summary()
+
+    print(f"\nNext step: python scripts/train_model.py")

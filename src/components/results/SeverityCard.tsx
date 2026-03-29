@@ -6,6 +6,7 @@ import { capitalize } from '../../utils/format';
 
 interface Props {
   severity: SeverityLevel;
+  allOptimal?: boolean;
   delay?: number;
 }
 
@@ -31,9 +32,12 @@ const severityConfig: Record<SeverityLevel, {
   },
 };
 
-export default function SeverityCard({ severity, delay = 0 }: Props) {
-  const config = severityConfig[severity];
+export default function SeverityCard({ severity, allOptimal, delay = 0 }: Props) {
+  const config = allOptimal
+    ? { color: '#4ade80', icon: CheckCircle, description: 'No nutrient deficiency detected. Plant tissue appears healthy across all measured indices.' }
+    : severityConfig[severity];
   const Icon = config.icon;
+  const label = allOptimal ? 'Healthy' : capitalize(severity);
 
   return (
     <GlassCard delay={delay} className="!p-3">
@@ -55,7 +59,7 @@ export default function SeverityCard({ severity, delay = 0 }: Props) {
               className="text-[10px] font-bold px-2 py-0.5 rounded-full"
               style={{ color: config.color, backgroundColor: `${config.color}20` }}
             >
-              {capitalize(severity)}
+              {label}
             </span>
           </div>
           <p className="text-xs text-white/65 leading-relaxed">{config.description}</p>
