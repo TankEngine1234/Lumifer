@@ -574,7 +574,7 @@ export default function FieldMapView({
         {displayedZone && (
           <ZoneCard
             zone={displayedZone}
-            onScanLeaf={() => setLeafPanelOpen(true)}
+            onScanLeaf={() => onScanLeafRef.current?.()}
           />
         )}
       </AnimatePresence>
