@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCamera } from '../../hooks/useCamera';
 import { blurFade } from '../../animations/variants';
@@ -14,15 +14,14 @@ interface Props {
 export default function CameraView({ isLocked, onCapture, onLock }: Props) {
   const { videoRef, isReady, error, retry, captureFrame } = useCamera();
   const [flash, setFlash] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCapture = useCallback(() => {
     if (!isLocked) {
-      // First tap: lock the viewfinder
       onLock();
       return;
     }
 
-    // Second state: capture the frame
     setFlash(true);
     setTimeout(() => setFlash(false), 300);
 
@@ -32,6 +31,21 @@ export default function CameraView({ isLocked, onCapture, onLock }: Props) {
     }
   }, [isLocked, onLock, captureFrame, onCapture]);
 
+  const handleUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      onCapture(dataUrl);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset so the same file can be re-selected
+    e.target.value = '';
+  }, [onCapture]);
+
   return (
     <motion.div
       className="relative h-full w-full overflow-hidden"
@@ -40,6 +54,15 @@ export default function CameraView({ isLocked, onCapture, onLock }: Props) {
       animate="visible"
       exit="exit"
     >
+      {/* Hidden file input for image upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleUpload}
+      />
+
       {/* Camera feed */}
       <video
         ref={videoRef}
@@ -70,6 +93,22 @@ export default function CameraView({ isLocked, onCapture, onLock }: Props) {
 
       {/* Capture button */}
       <CaptureButton onCapture={handleCapture} disabled={!isReady} />
+
+      {/* Upload button */}
+      <motion.button
+        className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-white/80 text-xs font-medium active:scale-95 transition-transform"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="m21 15-5-5L5 21" />
+        </svg>
+        Upload Image
+      </motion.button>
 
       {/* Flash overlay */}
       <AnimatePresence>
