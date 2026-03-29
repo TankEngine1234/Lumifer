@@ -253,8 +253,8 @@ export default function FieldMapView({
     ) => {
       const tempZone = buildZoneFromFeature(feature, lng, lat);
       setActive(tempZone);
-      onZoneSelectRef.current?.(tempZone);
       setLeafPanelOpen(true);
+      onZoneSelectRef.current?.(tempZone);
       map.flyTo({
         center: [tempZone.lng, tempZone.lat],
         zoom: Math.min(Math.max(map.getZoom(), 12.8), 13.6),
@@ -518,35 +518,6 @@ export default function FieldMapView({
         {polygonsVisible ? 'Hide Polygons' : 'Show Polygons'}
       </motion.button>
 
-      {/* Stats panel - top right */}
-      <motion.div
-        className="absolute right-4 top-[220px] z-20 w-[280px] max-w-[calc(100vw-32px)]"
-        initial={{ opacity: 0, x: 8 }}
-        animate={{ opacity: mapLoaded && geoStats.total > 0 ? 1 : 0, x: mapLoaded ? 0 : 8 }}
-        transition={{ delay: 0.6 }}
-      >
-        <div
-          className="app-card px-5 py-5"
-          style={{ maxHeight: '42vh', overflowY: 'auto' }}
-        >
-          <p className="app-label mb-3" style={{ textAlign: 'center' }}>Field Counts</p>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-center gap-2">
-              <span className="h-3.5 w-3.5 shrink-0 rounded-sm" style={{ background: '#FF0000' }} />
-              <span className="text-base font-bold" style={{ color: '#111111' }}>Critical: {stats.low}</span>
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <span className="h-3.5 w-3.5 shrink-0 rounded-sm" style={{ background: '#FFFF00' }} />
-              <span className="text-base font-bold" style={{ color: '#111111' }}>Moderate: {stats.med}</span>
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <span className="h-3.5 w-3.5 shrink-0 rounded-sm" style={{ background: '#00CC00' }} />
-              <span className="text-base font-bold" style={{ color: '#111111' }}>Healthy: {stats.high}</span>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
       {/* Legend - bottom left, matching GEE screenshot */}
       <motion.div
         className="absolute bottom-4 left-4 z-20 w-[300px] max-w-[calc(100vw-32px)]"
@@ -600,7 +571,7 @@ export default function FieldMapView({
 
       {/* Zone detail card - shown when a polygon is clicked */}
       <AnimatePresence>
-        {displayedZone && !leafPanelOpen && (
+        {displayedZone && (
           <ZoneCard
             zone={displayedZone}
             onScanLeaf={() => setLeafPanelOpen(true)}
