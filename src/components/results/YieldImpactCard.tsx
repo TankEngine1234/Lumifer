@@ -46,47 +46,47 @@ export default function YieldImpactCard({ result, delay = 0 }: Props) {
   }, [result.yieldImpact, recoverable, delay]);
 
   return (
-    <GlassCard delay={delay} className="!p-3">
+    <GlassCard delay={delay} className="!p-5">
       <div className="flex items-center gap-4">
-        {/* Yield loss — compact */}
         <div className="flex flex-col items-center shrink-0">
-          <TrendingDown className="w-3 h-3 text-red-400 mb-0.5" />
+          <TrendingDown className="w-4 h-4 mb-1" style={{ color: '#111111' }} />
           <motion.span
-            className="text-2xl font-bold text-red-400 tabular-nums leading-none"
+            className="text-3xl font-extrabold tabular-nums leading-none"
+            style={{ color: '#111111' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay }}
           >
             {displayLoss}%
           </motion.span>
-          <span className="text-[9px] text-white/35 mt-0.5">yield loss</span>
+          <span className="section-label mt-1">yield loss</span>
         </div>
 
-        {/* Divider */}
-        <div className="w-px h-12 bg-white/10 shrink-0" />
+        <div className="w-px h-14 shrink-0" style={{ background: 'rgba(17,17,17,0.08)' }} />
 
-        {/* Recovery */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-white/60 flex items-center gap-1">
-              <ArrowUpRight className="w-3 h-3 text-[#4ade80]" />
+          <div className="flex items-center justify-between mb-2 gap-3">
+            <span className="app-text flex items-center gap-1.5">
+              <ArrowUpRight className="w-4 h-4" style={{ color: '#2D5A27' }} />
               With treatment
             </span>
-            <span className="text-xs font-bold text-[#4ade80] tabular-nums">
+            <span className="text-base font-extrabold tabular-nums" style={{ color: '#2D5A27' }}>
               {displayRecovery}% recovery
             </span>
           </div>
-          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(17,17,17,0.08)' }}>
             <motion.div
               className="h-full rounded-full"
-              style={{ background: 'linear-gradient(to right, #16a34a, #4ade80)' }}
+              style={{ background: '#2D5A27' }}
               initial={{ width: '0%' }}
               animate={{ width: `${recoverable}%` }}
               transition={{ duration: 2, delay: delay + 0.8, ease: 'easeOut' }}
             />
           </div>
-          <p className="text-[9px] text-white/35 mt-1">
-            IPNI field trial data · {dominantNutrient} deficiency
+
+          <p className="section-label mt-2">
+            IPNI field trial data • {dominantNutrient} deficiency
           </p>
         </div>
       </div>

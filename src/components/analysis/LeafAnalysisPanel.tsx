@@ -12,44 +12,42 @@ interface Props {
 }
 
 const URGENCY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  CRITICAL: { bg: 'rgba(185,28,28,0.2)',  text: '#fca5a5', label: 'CRITICAL' },
-  HIGH:     { bg: 'rgba(220,38,38,0.15)', text: '#f87171', label: 'HIGH' },
-  MEDIUM:   { bg: 'rgba(217,119,6,0.15)', text: '#fbbf24', label: 'MEDIUM' },
-  LOW:      { bg: 'rgba(22,163,74,0.15)', text: '#4ade80', label: 'LOW — Looks Healthy' },
+  CRITICAL: { bg: 'rgba(17,17,17,0.08)', text: '#111111', label: 'CRITICAL' },
+  HIGH: { bg: 'rgba(45,90,39,0.12)', text: '#2D5A27', label: 'HIGH' },
+  MEDIUM: { bg: 'rgba(74,122,68,0.12)', text: '#4A7A44', label: 'MEDIUM' },
+  LOW: { bg: 'rgba(107,145,101,0.12)', text: '#6B9165', label: 'LOW — Looks Healthy' },
 };
 
 const CONF_COLORS: Record<string, string> = {
-  high: '#f87171',
-  medium: '#fbbf24',
-  low: '#4ade80',
+  high: '#111111',
+  medium: '#2D5A27',
+  low: '#6B9165',
 };
 
 function ResultDisplay({ result }: { result: LeafAnalysisResult }) {
   const urgency = URGENCY_STYLES[result.urgency] ?? URGENCY_STYLES.MEDIUM;
+
   return (
-    <div className="flex flex-col gap-3 overflow-y-auto max-h-[60vh] pr-1">
-      {/* Urgency badge */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: urgency.bg }}>
-        <AlertTriangle size={14} style={{ color: urgency.text }} />
-        <span className="text-[12px] font-bold tracking-wide" style={{ color: urgency.text }}>
+    <div className="flex flex-col gap-4 overflow-y-auto max-h-[60vh] pr-1">
+      <div className="flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: urgency.bg }}>
+        <AlertTriangle size={16} style={{ color: urgency.text }} />
+        <span className="text-sm font-extrabold tracking-wide" style={{ color: urgency.text }}>
           {urgency.label}
         </span>
       </div>
 
-      {/* Assessment */}
       <div>
-        <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Assessment</p>
-        <p className="text-[13px] text-white/80 leading-relaxed">{result.assessment}</p>
+        <p className="section-label mb-2">Assessment</p>
+        <p className="app-text" style={{ lineHeight: 1.55 }}>{result.assessment}</p>
       </div>
 
-      {/* Symptoms */}
       {result.symptoms.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Symptoms Observed</p>
-          <ul className="flex flex-col gap-1">
+          <p className="section-label mb-2">Symptoms Observed</p>
+          <ul className="flex flex-col gap-2">
             {result.symptoms.map((s, i) => (
-              <li key={i} className="flex items-start gap-2 text-[12px] text-white/70">
-                <span className="text-yellow-400 mt-0.5 shrink-0">•</span>
+              <li key={i} className="flex items-start gap-2 app-text">
+                <span style={{ color: '#2D5A27', marginTop: 2 }}>•</span>
                 {s}
               </li>
             ))}
@@ -57,33 +55,35 @@ function ResultDisplay({ result }: { result: LeafAnalysisResult }) {
         </div>
       )}
 
-      {/* Deficiencies */}
       {result.deficiencies.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1.5">Likely Issues</p>
-          <div className="flex flex-wrap gap-1.5">
+          <p className="section-label mb-2">Likely Issues</p>
+          <div className="flex flex-wrap gap-2">
             {result.deficiencies.map((d, i) => (
               <span
                 key={i}
-                className="px-2 py-0.5 rounded-full text-[11px] font-medium"
-                style={{ background: 'rgba(255,255,255,0.08)', border: `1px solid ${CONF_COLORS[d.confidence]}40`, color: CONF_COLORS[d.confidence] }}
+                className="px-3 py-2 rounded-full text-sm font-bold"
+                style={{
+                  background: `${CONF_COLORS[d.confidence]}12`,
+                  border: `1px solid ${CONF_COLORS[d.confidence]}22`,
+                  color: CONF_COLORS[d.confidence],
+                }}
               >
                 {d.name}
-                <span className="ml-1 text-[9px] opacity-60">{d.confidence}</span>
+                <span className="ml-1 opacity-70 text-xs">{d.confidence}</span>
               </span>
             ))}
           </div>
         </div>
       )}
 
-      {/* Recommendations */}
       {result.recommendations.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Recommendations</p>
-          <ol className="flex flex-col gap-1.5">
+          <p className="section-label mb-2">Recommendations</p>
+          <ol className="flex flex-col gap-2">
             {result.recommendations.map((r, i) => (
-              <li key={i} className="flex items-start gap-2 text-[12px] text-white/70">
-                <CheckCircle2 size={13} className="text-green-400 mt-0.5 shrink-0" />
+              <li key={i} className="flex items-start gap-2 app-text">
+                <CheckCircle2 size={16} style={{ color: '#2D5A27', marginTop: 2 }} className="shrink-0" />
                 {r}
               </li>
             ))}
@@ -121,132 +121,125 @@ export default function LeafAnalysisPanel({ fieldId, fieldLabel, onClose, onScan
     if (preview) analyze(preview, fieldId);
   }, [preview, analyze, fieldId]);
 
-  const panelStyle = {
-    background: 'rgba(10,10,10,0.88)',
-    backdropFilter: 'blur(24px)',
-    WebkitBackdropFilter: 'blur(24px)',
-    borderTop: '1px solid rgba(255,255,255,0.1)',
-  };
-
   return (
     <motion.div
-      className="absolute bottom-0 left-0 right-0 z-50 rounded-t-2xl px-5 pt-4 pb-8"
-      style={panelStyle}
+      className="absolute bottom-0 left-0 right-0 z-50 rounded-t-[24px] px-4 pt-4 pb-8"
+      style={{
+        background: '#F5F5F5',
+        borderTop: '1px solid rgba(17,17,17,0.08)',
+        boxShadow: '0 -8px 24px rgba(0,0,0,0.08)',
+      }}
       initial={{ y: '100%' }}
       animate={{ y: 0 }}
       exit={{ y: '100%' }}
       transition={{ type: 'spring', stiffness: 340, damping: 34 }}
     >
-      {/* Handle + header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
-            {fieldLabel ? `Field ${fieldLabel}` : 'Leaf Analysis'}
-          </p>
-          <h3 className="text-[15px] font-semibold text-white leading-tight">AI Crop Diagnosis</h3>
-        </div>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 rounded-full flex items-center justify-center"
-          style={{ background: 'rgba(255,255,255,0.1)' }}
-        >
-          <X size={14} className="text-white/60" />
-        </button>
-      </div>
-
-      {/* Body */}
-      {status === 'idle' && (
-        <div className="flex flex-col gap-3">
-          {/* Drop zone */}
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className="relative rounded-xl border-2 border-dashed cursor-pointer flex flex-col items-center justify-center py-6 gap-2 transition-colors"
-            style={{
-              borderColor: dragging ? 'rgba(74,222,128,0.6)' : 'rgba(255,255,255,0.15)',
-              background: dragging ? 'rgba(74,222,128,0.05)' : preview ? 'transparent' : 'rgba(255,255,255,0.03)',
-            }}
-          >
-            {preview ? (
-              <img src={preview} alt="preview" className="max-h-36 rounded-lg object-contain" />
-            ) : (
-              <>
-                <Upload size={22} className="text-white/30" />
-                <p className="text-[12px] text-white/40">Drop a leaf photo or tap to upload</p>
-              </>
-            )}
+      <div className="w-full max-w-[480px] mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="section-label">
+              {fieldLabel ? `Field ${fieldLabel}` : 'Leaf Analysis'}
+            </p>
+            <h3 className="text-[24px] font-extrabold" style={{ color: '#111111' }}>
+              AI Crop Diagnosis
+            </h3>
           </div>
+          <button
+            onClick={onClose}
+            className="app-button-secondary"
+            style={{ width: 48, height: 48, padding: 0, borderRadius: '999px' }}
+          >
+            <X size={18} />
+          </button>
+        </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
-          />
-
-          <div className="flex gap-2">
-            {onScanLeaf && (
-              <button
-                onClick={onScanLeaf}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium text-white/60 flex-1 justify-center"
-                style={{ background: 'rgba(255,255,255,0.07)' }}
-              >
-                <Camera size={14} />
-                Use Camera
-              </button>
-            )}
-            <button
-              onClick={handleAnalyze}
-              disabled={!preview}
-              className="flex-1 py-2 rounded-lg text-[13px] font-semibold transition-opacity"
+        {status === 'idle' && (
+          <div className="app-section">
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className="app-card cursor-pointer flex flex-col items-center justify-center py-8 px-4 transition-colors"
               style={{
-                background: preview ? '#16a34a' : 'rgba(255,255,255,0.1)',
-                color: preview ? 'white' : 'rgba(255,255,255,0.3)',
-                cursor: preview ? 'pointer' : 'not-allowed',
+                border: `2px dashed ${dragging ? '#2D5A27' : '#CCCCCC'}`,
+                background: preview ? '#FFFFFF' : dragging ? 'rgba(45,90,39,0.05)' : '#FFFFFF',
               }}
             >
-              Analyze
+              {preview ? (
+                <img src={preview} alt="preview" className="max-h-48 rounded-xl object-contain" />
+              ) : (
+                <>
+                  <Upload size={24} style={{ color: '#2D5A27' }} />
+                  <p className="app-text mt-3 text-center">Drop a leaf photo or tap to upload</p>
+                </>
+              )}
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+            />
+
+            <div className="flex gap-3">
+              {onScanLeaf && (
+                <button
+                  onClick={onScanLeaf}
+                  className="app-button-secondary flex-1"
+                >
+                  <Camera size={16} />
+                  Use Camera
+                </button>
+              )}
+              <button
+                onClick={handleAnalyze}
+                disabled={!preview}
+                className="app-button-primary app-button-cta flex-1"
+                style={{ width: 'auto', padding: '14px 20px', fontSize: 16, borderRadius: 12 }}
+              >
+                Analyze
+              </button>
+            </div>
+          </div>
+        )}
+
+        {status === 'loading' && (
+          <div className="app-card p-8 flex flex-col items-center gap-4">
+            <Loader2 size={30} className="animate-spin" style={{ color: '#2D5A27' }} />
+            <p className="app-text">Analyzing with Claude AI...</p>
+          </div>
+        )}
+
+        {status === 'success' && result && (
+          <div className="app-section">
+            <div className="app-card p-5">
+              <ResultDisplay result={result} />
+            </div>
+            <button
+              onClick={() => { reset(); setPreview(null); }}
+              className="app-button-secondary"
+            >
+              Analyze Another Photo
             </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {status === 'loading' && (
-        <div className="flex flex-col items-center gap-3 py-8">
-          <Loader2 size={28} className="text-green-400 animate-spin" />
-          <p className="text-[13px] text-white/50">Analyzing with Claude AI…</p>
-        </div>
-      )}
-
-      {status === 'success' && result && (
-        <div className="flex flex-col gap-3">
-          <ResultDisplay result={result} />
-          <button
-            onClick={() => { reset(); setPreview(null); }}
-            className="mt-1 py-2 rounded-lg text-[12px] font-medium text-white/40"
-            style={{ background: 'rgba(255,255,255,0.06)' }}
-          >
-            Analyze Another Photo
-          </button>
-        </div>
-      )}
-
-      {status === 'error' && (
-        <div className="flex flex-col items-center gap-3 py-6">
-          <AlertTriangle size={24} className="text-red-400" />
-          <p className="text-[13px] text-red-300 text-center">{error}</p>
-          <button
-            onClick={() => { reset(); setPreview(null); }}
-            className="px-4 py-2 rounded-lg text-[12px] font-medium text-white/60"
-            style={{ background: 'rgba(255,255,255,0.08)' }}
-          >
-            Try Again
-          </button>
-        </div>
-      )}
+        {status === 'error' && (
+          <div className="app-card p-6 flex flex-col items-center gap-4 text-center">
+            <AlertTriangle size={28} style={{ color: '#111111' }} />
+            <p className="app-text">{error}</p>
+            <button
+              onClick={() => { reset(); setPreview(null); }}
+              className="app-button-secondary"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 }

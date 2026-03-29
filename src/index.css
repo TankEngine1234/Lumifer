@@ -1,39 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  /* App background */
-  --color-bg-base: #0a0a0a;
-  --color-bg-surface: #141414;
-  --color-bg-elevated: #1c1c1c;
-
-  /* Nutrient colors — dashboard palette */
-  --color-nitrogen: #4ade80;      /* green-400: healthy readout */
-  --color-phosphorus: #60a5fa;    /* blue-400: phosphorus */
-  --color-potassium: #fb923c;     /* orange-400: potassium */
-
-  /* Deficiency accent — coral red (matches dashboard "alert" color) */
-  --color-deficient: #f87171;     /* red-400 */
-
-  /* NDVI zone colors */
-  --color-ndvi-healthy: #4ade80;
-  --color-ndvi-stress: #fb923c;
-  --color-ndvi-severe: #f87171;
-
-  /* Severity colors */
-  --color-severity-low: #4ade80;
-  --color-severity-moderate: #fb923c;
-  --color-severity-severe: #f87171;
-
-  /* Card surfaces */
-  --color-card-bg: #161616;
-  --color-card-border: rgba(255, 255, 255, 0.08);
-
-  /* Heatmap ramp */
-  --color-heatmap-blue: #1E3A8A;
-  --color-heatmap-cyan: #06B6D4;
-  --color-heatmap-green: #4ade80;
-  --color-heatmap-yellow: #fb923c;
-  --color-heatmap-red: #f87171;
+  --color-bg-base: #050805;
+  --color-bg-surface: #FFFFFF;
+  --color-primary: #2D5A27;
+  --color-primary-strong: #21441d;
+  --color-primary-soft: rgba(45, 90, 39, 0.18);
+  --color-primary-soft-strong: rgba(45, 90, 39, 0.28);
+  --color-border: #CCCCCC;
+  --color-border-soft: rgba(17, 17, 17, 0.08);
+  --color-text-heading: #111111;
+  --color-text-body: #444444;
+  --color-text-muted: rgba(68, 68, 68, 0.72);
+  --color-text-inverse: #FFFFFF;
+  --color-shadow: rgba(0, 0, 0, 0.16);
 }
 
 * {
@@ -43,20 +23,205 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  font-family: -apple-system, system-ui, sans-serif;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--color-bg-base);
-  color: white;
+  color: var(--color-text-body);
 }
 
-/* Solid dark card — replaces frosted glass */
-.glass {
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-card-border);
-  border-radius: 1rem;
+body {
+  line-height: 1.45;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  border: none;
+  background: none;
+}
+
+.glass,
+.app-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px var(--color-shadow);
+}
+
+.app-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--color-bg-base);
+  color: var(--color-text-body);
+}
+
+.page-header {
+  flex-shrink: 0;
+  padding: 40px 24px 28px;
+  background: var(--color-primary);
+  border-radius: 0 0 24px 24px;
+  color: var(--color-text-inverse);
+}
+
+.page-header-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.page-header-title {
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 800;
+  color: var(--color-text-inverse);
+}
+
+.page-header-copy {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.page-content {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.app-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.app-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.app-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-body);
+}
+
+.app-muted {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.section-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(68, 68, 68, 0.82);
+}
+
+.app-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg-surface);
+  color: var(--color-text-heading);
+  font-size: 16px;
+  font-weight: 600;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.app-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(45, 90, 39, 0.2);
+}
+
+.app-button-primary,
+.app-button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  transition: transform 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease;
+}
+
+.app-button-primary {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  box-shadow: 0 2px 12px rgba(45, 90, 39, 0.18);
+}
+
+.app-button-secondary {
+  background: var(--color-bg-surface);
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+}
+
+.app-button-primary:disabled,
+.app-button-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.app-button-cta {
+  width: 100%;
+  padding: 20px 24px;
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.app-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  border: 1px solid rgba(45, 90, 39, 0.16);
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.app-divider {
+  height: 1px;
+  background: rgba(17, 17, 17, 0.08);
+}
+
+.app-icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }

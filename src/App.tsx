@@ -6,6 +6,7 @@ import { useNASAPower } from './hooks/useNASAPower';
 import { useFieldZones } from './hooks/useFieldZones';
 import GradientBackground from './components/ui/GradientBackground';
 import Logo from './components/ui/Logo';
+import FarmSetup from './components/FarmSetup';
 import FieldMapView from './components/fieldmap/FieldMapView';
 import CameraView from './components/capture/CameraView';
 import AnalysisOverlay from './components/analysis/AnalysisOverlay';
@@ -15,6 +16,7 @@ import NASAContextView from './components/context/NASAContextView';
 
 function App() {
   const [phase, setPhase] = useState<DemoPhase>('splash');
+  const [setupDone, setSetupDone] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
   const [npkResult, setNpkResult] = useState<NPKResult | null>(null);
@@ -106,7 +108,11 @@ function App() {
           <Logo key="splash" onComplete={() => !isDemo && advanceTo('fieldmap')} />
         )}
 
-        {phase === 'fieldmap' && (
+        {phase === 'fieldmap' && !setupDone && (
+          <FarmSetup key="setup" onComplete={() => setSetupDone(true)} />
+        )}
+
+        {phase === 'fieldmap' && setupDone && (
           <FieldMapView
             key="fieldmap"
             zones={zones}

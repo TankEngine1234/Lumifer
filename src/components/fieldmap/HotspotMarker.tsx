@@ -10,13 +10,13 @@ interface Props {
 }
 
 const severityColors: Record<string, string> = {
-  low: '#22C55E',
-  moderate: '#EAB308',
-  severe: '#EF4444',
+  low: '#6B9165',
+  moderate: '#2D5A27',
+  severe: '#111111',
 };
 
 export default function HotspotMarker({ zone, delay = 0, onClick }: Props) {
-  const color = severityColors[zone.severity] || '#EF4444';
+  const color = severityColors[zone.severity] || '#111111';
 
   return (
     <motion.button
@@ -28,10 +28,9 @@ export default function HotspotMarker({ zone, delay = 0, onClick }: Props) {
       whileTap={{ scale: 0.9 }}
       onClick={onClick}
     >
-      {/* Pulsing ring */}
       <motion.div
         className="absolute w-10 h-10 rounded-full"
-        style={{ backgroundColor: `${color}20`, border: `2px solid ${color}40` }}
+        style={{ backgroundColor: `${color}12`, border: `2px solid ${color}30` }}
         animate={{
           scale: [1, 1.4, 1],
           opacity: [0.6, 0, 0.6],
@@ -43,19 +42,17 @@ export default function HotspotMarker({ zone, delay = 0, onClick }: Props) {
         }}
       />
 
-      {/* Pin icon */}
       <MapPin
         className="w-7 h-7 drop-shadow-lg"
         style={{ color }}
         fill={color}
-        fillOpacity={0.3}
+        fillOpacity={0.22}
         strokeWidth={2}
       />
 
-      {/* Label */}
       <span
-        className="mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
-        style={{ backgroundColor: `${color}20`, color }}
+        className="mt-1 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap"
+        style={{ backgroundColor: '#FFFFFF', color, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}
       >
         NDVI {zone.ndviValue.toFixed(2)}
       </span>

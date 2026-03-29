@@ -15,19 +15,19 @@ const severityConfig: Record<SeverityLevel, {
   description: string;
 }> = {
   low: {
-    color: '#4ade80',
+    color: '#6B9165',
     icon: CheckCircle,
     description: 'Minor nutrient imbalance detected. Crop yield impact is minimal with timely correction.',
   },
   moderate: {
-    color: '#fb923c',
+    color: '#2D5A27',
     icon: AlertTriangle,
     description: 'Significant nutrient stress detected. Intervention recommended within 5 days to prevent yield loss.',
   },
   severe: {
-    color: '#f87171',
+    color: '#111111',
     icon: XCircle,
-    description: 'Critical deficiency detected. Immediate action required — every day of delay reduces recovery potential.',
+    description: 'Critical deficiency detected. Immediate action required and recovery potential drops with delay.',
   },
 };
 
@@ -36,11 +36,11 @@ export default function SeverityCard({ severity, delay = 0 }: Props) {
   const Icon = config.icon;
 
   return (
-    <GlassCard delay={delay} className="!p-3">
-      <div className="flex items-start gap-3">
+    <GlassCard delay={delay} className="!p-5">
+      <div className="flex items-start gap-4">
         <motion.div
-          className="p-2 rounded-lg"
-          style={{ backgroundColor: `${config.color}15` }}
+          className="p-3 rounded-xl"
+          style={{ backgroundColor: `${config.color}12` }}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: delay + 0.2, type: 'spring', stiffness: 400, damping: 10 }}
@@ -49,16 +49,18 @@ export default function SeverityCard({ severity, delay = 0 }: Props) {
         </motion.div>
 
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-semibold text-white">Severity Assessment</span>
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <span className="app-label">Severity Assessment</span>
             <span
-              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-              style={{ color: config.color, backgroundColor: `${config.color}20` }}
+              className="text-xs font-bold px-3 py-1 rounded-full"
+              style={{ color: config.color, backgroundColor: `${config.color}14` }}
             >
               {capitalize(severity)}
             </span>
           </div>
-          <p className="text-xs text-white/65 leading-relaxed">{config.description}</p>
+          <p className="app-text" style={{ lineHeight: 1.55 }}>
+            {config.description}
+          </p>
         </div>
       </div>
     </GlassCard>

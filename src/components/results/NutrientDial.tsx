@@ -6,13 +6,13 @@ import { capitalize } from '../../utils/format';
 
 interface Props {
   nutrient: NutrientType;
-  confidence: number; // 0–1
+  confidence: number;
   level: DeficiencyLevel;
   color: string;
   delay?: number;
 }
 
-const circumference = 2 * Math.PI * 36; // radius = 36
+const circumference = 2 * Math.PI * 36;
 
 export default function NutrientDial({ nutrient, confidence, level, color, delay = 0 }: Props) {
   const [displayValue, setDisplayValue] = useState(0);
@@ -27,26 +27,23 @@ export default function NutrientDial({ nutrient, confidence, level, color, delay
       onUpdate: (v) => setDisplayValue(Math.round(v * 100)),
     });
     return controls.stop;
-  }, [confidence, delay]);
+  }, [confidence, delay, progress]);
 
   return (
     <motion.div
-      className="flex flex-col items-center gap-2"
+      className="flex flex-col items-center gap-3"
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ ...springDefault, delay }}
     >
-      {/* SVG Ring */}
-      <div className="relative w-20 h-20">
+      <div className="relative w-24 h-24">
         <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
-          {/* Background ring */}
           <circle
             cx="40" cy="40" r="36"
             fill="none"
-            stroke="rgba(255,255,255,0.08)"
+            stroke="rgba(17,17,17,0.08)"
             strokeWidth="7"
           />
-          {/* Progress ring */}
           <motion.circle
             cx="40" cy="40" r="36"
             fill="none"
@@ -58,23 +55,21 @@ export default function NutrientDial({ nutrient, confidence, level, color, delay
           />
         </svg>
 
-        {/* Center percentage */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xl font-bold text-white tabular-nums">
+          <span className="text-2xl font-extrabold tabular-nums" style={{ color: '#111111' }}>
             {displayValue}
-            <span className="text-xs font-normal text-white/50">%</span>
+            <span className="text-sm font-semibold" style={{ color: '#444444' }}>%</span>
           </span>
         </div>
       </div>
 
-      {/* Nutrient label */}
       <div className="text-center">
-        <p className="text-xs font-semibold text-white/80">{capitalize(nutrient)}</p>
+        <p className="app-label">{capitalize(nutrient)}</p>
         <p
-          className="text-[10px] font-medium mt-0.5 px-2 py-0.5 rounded-full"
+          className="text-xs font-bold mt-1 px-3 py-1 rounded-full"
           style={{
             color,
-            backgroundColor: `${color}15`,
+            backgroundColor: `${color}12`,
           }}
         >
           {capitalize(level)}

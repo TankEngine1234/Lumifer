@@ -173,9 +173,10 @@ export default function LineGraphStatistics({
     <div
       className={`relative overflow-hidden ${className}`}
       style={{
-        background: 'linear-gradient(160deg, #161616 0%, #111111 60%, #0e0e0e 100%)',
-        border: '1px solid rgba(255,255,255,0.07)',
+        background: '#FFFFFF',
+        border: '1px solid rgba(17,17,17,0.08)',
         borderRadius: '16px',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
       }}
     >
       {/* ── Subtle grain texture overlay ── */}
@@ -183,7 +184,7 @@ export default function LineGraphStatistics({
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.03\'/%3E%3C/svg%3E")',
-          opacity: 0.4,
+          opacity: 0.12,
           borderRadius: '16px',
         }}
       />
@@ -196,15 +197,15 @@ export default function LineGraphStatistics({
             style={{ opacity: animPhase >= 1 ? 1 : 0, transform: animPhase >= 1 ? 'none' : 'translateY(8px)' }}
           >
             <h3
-              className="font-bold tracking-tight text-white"
-              style={{ fontSize: '15px', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}
+              className="font-bold tracking-tight"
+              style={{ fontSize: '15px', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: '#111111' }}
             >
               {title}
             </h3>
             {subtitle && (
               <span
-                className="text-white/35 transition-opacity duration-500"
-                style={{ fontSize: '10px', fontVariantNumeric: 'tabular-nums' }}
+                className="transition-opacity duration-500"
+                style={{ fontSize: '10px', fontVariantNumeric: 'tabular-nums', color: '#444444' }}
               >
                 {subtitle}
               </span>
@@ -227,7 +228,7 @@ export default function LineGraphStatistics({
                   />
                   <span
                     className="font-medium"
-                    style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}
+                    style={{ fontSize: '11px', color: '#444444' }}
                   >
                     {s.label}
                   </span>
@@ -259,20 +260,20 @@ export default function LineGraphStatistics({
                 fontWeight: 600,
                 letterSpacing: '0.02em',
                 background: selectedPeriod === p.label
-                  ? 'rgba(255,255,255,0.12)'
-                  : 'transparent',
+                  ? '#2D5A27'
+                  : 'rgba(45,90,39,0.08)',
                 border: selectedPeriod === p.label
-                  ? '1px solid rgba(255,255,255,0.18)'
-                  : '1px solid rgba(255,255,255,0.06)',
+                  ? '1px solid #2D5A27'
+                  : '1px solid rgba(45,90,39,0.14)',
                 color: selectedPeriod === p.label
-                  ? 'rgba(255,255,255,0.9)'
-                  : 'rgba(255,255,255,0.35)',
+                  ? '#FFFFFF'
+                  : '#2D5A27',
               }}
             >
               <span
                 className="w-1.5 h-1.5 rounded-full inline-block"
                 style={{
-                  background: selectedPeriod === p.label ? 'currentColor' : 'rgba(255,255,255,0.2)',
+                  background: selectedPeriod === p.label ? 'currentColor' : 'rgba(45,90,39,0.3)',
                 }}
               />
               {p.label}
@@ -324,7 +325,7 @@ export default function LineGraphStatistics({
               <g key={v}>
                 <line
                   x1={PAD_L} y1={y} x2={VW - PAD_R} y2={y}
-                  stroke={isZero ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.055)'}
+                  stroke={isZero ? 'rgba(17,17,17,0.10)' : 'rgba(17,17,17,0.055)'}
                   strokeWidth={isZero ? '0.8' : '0.6'}
                 />
                 <text
@@ -332,7 +333,7 @@ export default function LineGraphStatistics({
                   textAnchor="end"
                   fontSize="9"
                   fontFamily="'SF Mono', 'Fira Mono', monospace"
-                  fill="rgba(255,255,255,0.22)"
+                  fill="rgba(68,68,68,0.55)"
                 >
                   {v}{yUnit}
                 </text>
@@ -426,7 +427,7 @@ export default function LineGraphStatistics({
               <line
                 x1={hx} y1={CHART_TOP}
                 x2={hx} y2={BAR_BOT}
-                stroke="rgba(255,255,255,0.18)"
+                stroke="rgba(17,17,17,0.18)"
                 strokeWidth="1"
                 strokeDasharray="3,3"
               />
@@ -439,7 +440,7 @@ export default function LineGraphStatistics({
             const hy = CHART_TOP + (1 - normalize(s.values[hovered], minV, maxV)) * (CHART_BOT - CHART_TOP);
             return (
               <g key={`hover-dot-${si}`}>
-                <circle cx={hx} cy={hy} r="5" fill="rgba(10,20,15,1)" stroke={s.color} strokeWidth="2" />
+                <circle cx={hx} cy={hy} r="5" fill="#FFFFFF" stroke={s.color} strokeWidth="2" />
                 <circle cx={hx} cy={hy} r="2" fill={s.color} />
               </g>
             );
@@ -458,8 +459,8 @@ export default function LineGraphStatistics({
                   x={tx} y={ty}
                   width={tooltipW} height={tooltipH}
                   rx="5"
-                  fill="rgba(8,14,26,0.95)"
-                  stroke="rgba(255,255,255,0.12)"
+                  fill="#FFFFFF"
+                  stroke="rgba(17,17,17,0.12)"
                   strokeWidth="0.8"
                 />
                 <text
@@ -468,7 +469,7 @@ export default function LineGraphStatistics({
                   fontSize="9"
                   fontFamily="'SF Mono', 'Fira Mono', monospace"
                   fontWeight="600"
-                  fill="rgba(255,255,255,0.55)"
+                  fill="#444444"
                 >
                   {data.dates[hovered]}
                 </text>
@@ -495,7 +496,7 @@ export default function LineGraphStatistics({
             fontSize="8.5"
             fontFamily="'SF Mono', 'Fira Mono', monospace"
             letterSpacing="0.08em"
-            fill="rgba(255,255,255,0.25)"
+            fill="rgba(68,68,68,0.65)"
           >
             {data.series.map(s => s.label).join(' · ')} {yUnit && `(${yUnit})`}
           </text>
@@ -504,7 +505,7 @@ export default function LineGraphStatistics({
           <line
             x1={PAD_L} y1={SEP_Y}
             x2={VW - PAD_R} y2={SEP_Y}
-            stroke="rgba(255,255,255,0.06)"
+            stroke="rgba(17,17,17,0.08)"
             strokeWidth="0.6"
           />
 
@@ -519,7 +520,7 @@ export default function LineGraphStatistics({
                   fontSize="8.5"
                   fontFamily="'SF Mono', 'Fira Mono', monospace"
                   letterSpacing="0.08em"
-                  fill="rgba(255,255,255,0.22)"
+                  fill="rgba(68,68,68,0.55)"
                 >
                   {barSeries.label.toUpperCase()}
                 </text>
@@ -562,7 +563,7 @@ export default function LineGraphStatistics({
                 textAnchor={anchor}
                 fontSize="10"
                 fontFamily="'SF Mono', 'Fira Mono', monospace"
-                fill="rgba(255,255,255,0.30)"
+                fill="rgba(68,68,68,0.75)"
                 style={{ opacity: visible ? 1 : 0, transition: `opacity 0.4s ease 1200ms` }}
               >
                 {data.dates[idx]}
@@ -576,7 +577,7 @@ export default function LineGraphStatistics({
       <div
         className="flex gap-0 border-t mx-0 transition-all duration-600"
         style={{
-          borderColor: 'rgba(255,255,255,0.06)',
+          borderColor: 'rgba(17,17,17,0.08)',
           opacity: animPhase >= 3 ? 1 : 0,
           transform: animPhase >= 3 ? 'none' : 'translateY(6px)',
         }}
@@ -584,17 +585,18 @@ export default function LineGraphStatistics({
         {data.metrics.map((m, i) => (
           <div
             key={m.label}
-            className="flex-1 flex flex-col justify-center px-4 py-3 transition-all duration-300 hover:bg-white/[0.025]"
+            className="flex-1 flex flex-col justify-center px-4 py-3 transition-all duration-300"
             style={{
-              borderRight: i < data.metrics.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+              borderRight: i < data.metrics.length - 1 ? '1px solid rgba(17,17,17,0.08)' : 'none',
               transitionDelay: `${i * 80}ms`,
+              background: 'transparent',
             }}
           >
             <div
               className="font-bold tabular-nums leading-none"
               style={{
                 fontSize: '17px',
-                color: m.accent ?? 'white',
+                color: m.accent ?? '#111111',
                 letterSpacing: '-0.02em',
                 fontVariantNumeric: 'tabular-nums',
               }}
@@ -603,7 +605,7 @@ export default function LineGraphStatistics({
             </div>
             <div
               className="mt-1 uppercase tracking-wider"
-              style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em' }}
+              style={{ fontSize: '9px', color: '#444444', letterSpacing: '0.08em' }}
             >
               {m.label}
             </div>

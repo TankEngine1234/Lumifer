@@ -15,21 +15,21 @@ const iconMap: Record<string, typeof Droplets> = {
 };
 
 const nutrientColors: Record<string, string> = {
-  nitrogen: '#4ade80',
-  phosphorus: '#60a5fa',
-  potassium: '#fb923c',
+  nitrogen: '#2D5A27',
+  phosphorus: '#4A7A44',
+  potassium: '#6B9165',
 };
 
 export default function ActionPlanCard({ plan, delay = 0 }: Props) {
   const Icon = iconMap[plan.icon] || Droplets;
-  const color = nutrientColors[plan.nutrient] || '#22C55E';
+  const color = nutrientColors[plan.nutrient] || '#2D5A27';
 
   return (
-    <GlassCard delay={delay} className="!p-3">
-      <div className="flex items-start gap-3">
+    <GlassCard delay={delay} className="!p-5">
+      <div className="flex items-start gap-4">
         <motion.div
-          className="p-2 rounded-lg shrink-0"
-          style={{ backgroundColor: `${color}15` }}
+          className="p-3 rounded-xl shrink-0"
+          style={{ backgroundColor: `${color}12` }}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: delay + 0.15, type: 'spring', stiffness: 400, damping: 10 }}
@@ -38,16 +38,14 @@ export default function ActionPlanCard({ plan, delay = 0 }: Props) {
         </motion.div>
 
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-semibold text-white mb-1">{plan.title}</h4>
-          <p className="text-xs text-white/65 leading-relaxed mb-2">{plan.description}</p>
+          <h4 className="app-label mb-2">{plan.title}</h4>
+          <p className="app-text mb-3" style={{ lineHeight: 1.55 }}>
+            {plan.description}
+          </p>
 
           <div className="flex flex-wrap gap-2">
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white/8 text-white/80 border border-white/10">
-              {plan.rate}
-            </span>
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white/8 text-white/80 border border-white/10">
-              {plan.timing}
-            </span>
+            <span className="app-chip">{plan.rate}</span>
+            <span className="app-chip">{plan.timing}</span>
           </div>
         </div>
       </div>
