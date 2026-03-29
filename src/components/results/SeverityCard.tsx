@@ -44,8 +44,8 @@ export default function SeverityCard({ severity, allOptimal, delay = 0 }: Props)
   const label = allOptimal ? 'Healthy' : capitalize(severity);
 
   return (
-    <GlassCard delay={delay} className="p-4">
-      <div className="flex items-start gap-3">
+    <GlassCard delay={delay} className="p-5 mb-4">
+      <div className="flex items-start gap-4">
         <motion.div
           className="p-2 rounded-full"
           style={{ backgroundColor: `${config.color.replace(')',', 0.1)').replace('rgb(','rgba(')}`}}
@@ -57,10 +57,10 @@ export default function SeverityCard({ severity, allOptimal, delay = 0 }: Props)
         </motion.div>
 
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-semibold text-white">Severity Assessment</span>
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-sm font-semibold tracking-wide text-white/90">Severity Assessment</span>
             <span
-              className={`text-xs font-bold px-2 py-0.5 rounded-full ${config.className}`}
+              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${config.className}`}
             >
               {label}
             </span>

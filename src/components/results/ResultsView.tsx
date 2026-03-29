@@ -77,24 +77,24 @@ export default function ResultsView({ result, onNASAContext }: Props) {
         </motion.div>
 
         {/* Action plan cards */}
-        <motion.div variants={staggerItem} className="mb-4">
-          <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">
+        <motion.div variants={staggerItem} className="mb-6">
+          <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-4 px-1">
             {allOptimal ? 'Assessment' : 'Recommended Actions'}
           </h3>
           {allOptimal ? (
-            <div className="flex items-start gap-3 p-4 rounded-lg bg-green-900/50 border border-green-500/30">
-              <div className="p-1.5 rounded-full bg-green-500/20">
+            <div className="flex items-start gap-3 p-5 rounded-2xl bg-green-900/40 border border-green-500/30">
+              <div className="p-1.5 rounded-full bg-green-500/20 shrink-0">
                 <CheckCircle className="w-5 h-5 text-green-400" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-white">Healthy — No Action Needed</p>
-                <p className="text-xs text-white/60 mt-0.5 leading-relaxed">
+                <p className="text-sm text-white/70 mt-1 leading-relaxed">
                   All nutrient levels are within optimal range. Continue current management practices.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="flex flex-col">
               {visiblePlans.map((plan, i) => (
                 <ActionPlanCard key={plan.id} plan={plan} delay={1.8 + i * 0.25} />
               ))}

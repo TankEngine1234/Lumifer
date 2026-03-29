@@ -74,10 +74,10 @@ function NutrientBar({
           <span
             className={`text-xs font-medium px-2 py-0.5 rounded-full ${
               isDeficient
-                ? 'bg-destructive/10 text-destructive'
+                ? 'bg-destructive/20 text-destructive'
                 : level === 'adequate'
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-green-100 text-green-700'
+                ? 'bg-amber-500/20 text-amber-400'
+                : 'bg-green-500/20 text-green-400'
             }`}
           >
             {capitalize(level)}
@@ -169,7 +169,7 @@ export default function DashboardSidebar({ result }: Props) {
             Active Zone
           </h3>
           <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
-            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center">
               <MapPin className="w-4 h-4 text-phosphorus" />
             </div>
             <div>

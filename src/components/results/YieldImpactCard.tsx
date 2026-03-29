@@ -47,10 +47,10 @@ export default function YieldImpactCard({ result, delay = 0 }: Props) {
   }, [result.yieldImpact, recoverable, delay]);
 
   return (
-    <GlassCard delay={delay} className="p-4">
-      <div className="flex items-center gap-4">
+    <GlassCard delay={delay} className="p-5 mb-4 mt-2">
+      <div className="flex items-center gap-6">
         {/* Yield loss — compact */}
-        <div className="flex flex-col items-center shrink-0 text-center">
+        <div className="flex flex-col items-center justify-center shrink-0 min-w-[3.5rem] text-center">
           <TrendingDown className="w-4 h-4 text-red-400 mb-1" />
           <motion.span
             className="text-2xl font-bold text-red-400 tabular-nums leading-none"

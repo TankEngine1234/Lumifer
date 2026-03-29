@@ -1,37 +1,37 @@
 @import "tailwindcss";
 
 @theme {
-  /* ── Light theme — shadcn admin kit palette ── */
+  /* ── Deep Space Dark Theme ── */
 
   /* App background */
-  --color-bg-base: #ffffff;
-  --color-bg-surface: #f9fafb;
-  --color-bg-elevated: #f3f4f6;
+  --color-bg-base: #050505;
+  --color-bg-surface: #0a0a0a;
+  --color-bg-elevated: #111111;
 
-  /* Semantic tokens (shadcn light) */
-  --color-background: #ffffff;
-  --color-foreground: #09090b;
-  --color-muted: #f4f4f5;
-  --color-muted-foreground: #71717a;
-  --color-card: #ffffff;
-  --color-card-foreground: #09090b;
-  --color-border: #e4e4e7;
-  --color-input: #e4e4e7;
-  --color-ring: #2563eb;
-  --color-primary: #18181b;
+  /* Semantic tokens (shadcn dark) */
+  --color-background: #050505;
+  --color-foreground: #fafafa;
+  --color-muted: #27272a;
+  --color-muted-foreground: #a1a1aa;
+  --color-card: #0a0a0a;
+  --color-card-foreground: #fafafa;
+  --color-border: #27272a;
+  --color-input: #27272a;
+  --color-ring: #3b82f6;
+  --color-primary: #3b82f6;
   --color-primary-foreground: #fafafa;
-  --color-secondary: #f4f4f5;
-  --color-secondary-foreground: #18181b;
-  --color-accent: #f4f4f5;
-  --color-accent-foreground: #18181b;
+  --color-secondary: #27272a;
+  --color-secondary-foreground: #fafafa;
+  --color-accent: #27272a;
+  --color-accent-foreground: #fafafa;
   --color-destructive: #ef4444;
   --color-destructive-foreground: #fafafa;
 
   /* Sidebar tokens */
-  --color-sidebar: #ffffff;
-  --color-sidebar-foreground: #09090b;
-  --color-sidebar-border: #e4e4e7;
-  --color-sidebar-muted: #f4f4f5;
+  --color-sidebar: #050505;
+  --color-sidebar-foreground: #fafafa;
+  --color-sidebar-border: rgba(255, 255, 255, 0.08);
+  --color-sidebar-muted: rgba(255, 255, 255, 0.05);
 
   /* Radius */
   --radius-sm: 0.375rem;
@@ -58,8 +58,8 @@
   --color-severity-severe: #dc2626;
 
   /* Card surfaces */
-  --color-card-bg: #ffffff;
-  --color-card-border: #e4e4e7;
+  --color-card-bg: #0a0a0a;
+  --color-card-border: rgba(255, 255, 255, 0.08);
 
   /* Heatmap ramp */
   --color-heatmap-blue: #3b82f6;
@@ -87,9 +87,12 @@ html, body, #root {
   color: var(--color-foreground);
 }
 
-/* Clean card surface — light theme */
+/* Premium dark glassmorphism */
 .glass {
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-card-border);
-  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  border-radius: 1rem;
 }
