@@ -9,7 +9,19 @@ export type DemoPhase =
   | 'analyzing'
   | 'heatmap'
   | 'results'
-  | 'context';
+  | 'context'
+  | 'history';
+
+// ── Historical Analysis ──
+export interface HistoryScan {
+  scan_id: string;
+  timestamp: string; // ISO date
+  overall_health_score: number; // 0–100
+  nitrogen_grade: number; // 0–100
+  phosphorus_grade: number; // 0–100
+  potassium_grade: number; // 0–100
+  leaf_image_snippet: string; // emoji placeholder or data URL
+}
 
 // ── NASA POWER API ──
 export interface NASAPowerDaily {

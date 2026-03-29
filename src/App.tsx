@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import type { DemoPhase, NPKResult, ProcessingResult } from './types';
+import type { DemoPhase, NPKResult, ProcessingResult, HistoryScan } from './types';
 import { getNextPhase, getPhaseDelay } from './animations/demoSequence';
 import { useNASAPower } from './hooks/useNASAPower';
 import { useFieldZones } from './hooks/useFieldZones';
+import { scanHistory } from './data/scanHistory';
 import GradientBackground from './components/ui/GradientBackground';
 import Logo from './components/ui/Logo';
 import FieldMapView from './components/fieldmap/FieldMapView';
@@ -12,12 +13,14 @@ import AnalysisOverlay from './components/analysis/AnalysisOverlay';
 import SpectralHeatmap from './components/analysis/SpectralHeatmap';
 import ResultsView from './components/results/ResultsView';
 import NASAContextView from './components/context/NASAContextView';
+import HistorySidebar from './components/history/HistorySidebar';
 
 function App() {
   const [phase, setPhase] = useState<DemoPhase>('splash');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
   const [npkResult, setNpkResult] = useState<NPKResult | null>(null);
+  const [selectedHistoryScanId, setSelectedHistoryScanId] = useState<string | null>(null);
 
   // 🛡️ FIX: Reference to clear rogue timeouts during manual overrides
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -70,6 +73,27 @@ function App() {
   const handleInferenceComplete = useCallback((result: NPKResult) => {
     setNpkResult(result);
   }, []);
+
+  // Convert a historical scan (0–100 grades) to NPKResult (0–1 confidence)
+  const handleSelectHistoryScan = useCallback((scan: HistoryScan) => {
+    setSelectedHistoryScanId(scan.scan_id);
+    const toConf = (grade: number) => (100 - grade) / 100; // high grade = low deficiency confidence
+    const getLevel = (conf: number) =>
+      conf > 0.5 ? 'deficient' as const : conf > 0.2 ? 'adequate' as const : 'optimal' as const;
+    const nConf = toConf(scan.nitrogen_grade);
+    const pConf = toConf(scan.phosphorus_grade);
+    const kConf = toConf(scan.potassium_grade);
+    const maxConf = Math.max(nConf, pConf, kConf);
+    const severity = maxConf > 0.7 ? 'severe' as const : maxConf > 0.4 ? 'moderate' as const : 'low' as const;
+    setNpkResult({
+      nitrogen: { confidence: nConf, level: getLevel(nConf) },
+      phosphorus: { confidence: pConf, level: getLevel(pConf) },
+      potassium: { confidence: kConf, level: getLevel(kConf) },
+      severity,
+      yieldImpact: Math.round(maxConf * 40),
+    });
+    advanceTo('results');
+  }, [advanceTo]);
 
   // Hidden escape hatch: triple-tap top-right to skip to results
   const [tapCount, setTapCount] = useState(0);
