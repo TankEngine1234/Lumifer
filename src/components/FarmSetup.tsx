@@ -12,6 +12,32 @@ interface Props {
 
 const STEPS = ['Location', 'Crop Type', 'Farm Size'];
 
+const darkCardStyle = {
+  background: 'rgba(8, 12, 8, 0.94)',
+  border: '1px solid rgba(108,176,94,0.14)',
+  borderRadius: 20,
+  boxShadow: '0 18px 38px rgba(0,0,0,0.28)',
+} satisfies React.CSSProperties;
+
+const darkInputStyle = {
+  background: 'rgba(255,255,255,0.04)',
+  border: '2px solid rgba(108,176,94,0.18)',
+  color: '#FFFFFF',
+} satisfies React.CSSProperties;
+
+interface ToggleStyleProps {
+  selected: boolean;
+}
+
+function getToggleStyle({ selected }: ToggleStyleProps): React.CSSProperties {
+  return {
+    background: selected ? '#2D5A27' : 'rgba(255,255,255,0.04)',
+    color: '#FFFFFF',
+    border: `1px solid ${selected ? 'rgba(158,216,142,0.3)' : 'rgba(108,176,94,0.14)'}`,
+    boxShadow: selected ? '0 10px 24px rgba(45,90,39,0.24)' : 'none',
+  };
+}
+
 export default function FarmSetup({ onComplete }: Props) {
   const [location, setLocation] = useState('');
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -47,16 +73,23 @@ export default function FarmSetup({ onComplete }: Props) {
   return (
     <motion.div
       className="app-page"
+      style={{ background: '#030603' }}
       variants={blurFade}
       initial="hidden"
       animate="visible"
       exit={{ opacity: 0, scale: 0.97, filter: 'blur(8px)' }}
       transition={springDefault}
     >
-      <div className="page-header">
-        <p className="page-header-kicker">Field Intelligence</p>
+      <div
+        className="page-header"
+        style={{
+          background: 'rgba(14, 34, 12, 0.96)',
+          borderBottom: '1px solid rgba(108,176,94,0.14)',
+        }}
+      >
+        <p className="page-header-kicker" style={{ color: 'rgba(223,248,216,0.82)' }}>Field Intelligence</p>
         <h1 className="page-header-title">Initialize Field Scan</h1>
-        <p className="page-header-copy" style={{ marginTop: 8 }}>
+        <p className="page-header-copy" style={{ marginTop: 8, color: 'rgba(255,255,255,0.74)' }}>
           Enter your farm details to generate the field overview.
         </p>
 
@@ -66,21 +99,21 @@ export default function FarmSetup({ onComplete }: Props) {
             const active = i === completedSteps;
 
             return (
-              <div key={label} className="flex-1 flex flex-col gap-2">
+              <div key={label} className="flex flex-1 flex-col gap-2">
                 <div
                   className="h-2 rounded-full transition-all duration-500"
                   style={{
                     background: done
-                      ? '#FFFFFF'
+                      ? '#9ED88E'
                       : active
-                      ? 'rgba(255,255,255,0.55)'
-                      : 'rgba(255,255,255,0.22)',
+                      ? 'rgba(158,216,142,0.55)'
+                      : 'rgba(255,255,255,0.16)',
                   }}
                 />
                 <span
                   className="text-xs font-bold uppercase tracking-[0.08em]"
                   style={{
-                    color: done || active ? '#FFFFFF' : 'rgba(255,255,255,0.68)',
+                    color: done || active ? '#FFFFFF' : 'rgba(255,255,255,0.58)',
                   }}
                 >
                   {label}
@@ -91,24 +124,36 @@ export default function FarmSetup({ onComplete }: Props) {
         </div>
       </div>
 
-      <div className="page-content flex-1">
+      <div className="page-content flex-1" style={{ maxWidth: 760 }}>
         <div className="app-section">
           <motion.div
-            className="app-card p-5"
+            className="p-5"
+            style={darkCardStyle}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...springDefault, delay: 0.1 }}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="app-icon-box">
+            <div className="mb-4 flex items-center gap-3">
+              <div
+                className="app-icon-box"
+                style={{ background: 'rgba(45,90,39,0.25)', color: '#DFF8D8' }}
+              >
                 <MapPin size={18} />
               </div>
               <div className="flex-1">
-                <p className="app-label">Farm Location</p>
-                <p className="section-label">Address or coordinates</p>
+                <p className="app-label" style={{ color: '#FFFFFF' }}>Farm Location</p>
+                <p className="section-label" style={{ color: 'rgba(255,255,255,0.58)' }}>Address or coordinates</p>
               </div>
               {step1Done && (
-                <span className="app-chip" style={{ padding: '8px 12px' }}>
+                <span
+                  className="app-chip"
+                  style={{
+                    padding: '8px 12px',
+                    background: 'rgba(158,216,142,0.12)',
+                    border: '1px solid rgba(158,216,142,0.18)',
+                    color: '#DFF8D8',
+                  }}
+                >
                   Set
                 </span>
               )}
@@ -121,6 +166,7 @@ export default function FarmSetup({ onComplete }: Props) {
                 value={location}
                 onChange={e => setLocation(e.target.value)}
                 className="app-input"
+                style={darkInputStyle}
                 autoComplete="street-address"
               />
               <motion.button
@@ -128,7 +174,7 @@ export default function FarmSetup({ onComplete }: Props) {
                 onClick={handleGPS}
                 disabled={gpsLoading}
                 className="app-button-primary"
-                style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}
+                style={{ padding: '14px 18px', whiteSpace: 'nowrap', background: '#2D5A27' }}
                 whileTap={{ scale: 0.97 }}
               >
                 <Navigation size={16} />
@@ -138,21 +184,33 @@ export default function FarmSetup({ onComplete }: Props) {
           </motion.div>
 
           <motion.div
-            className="app-card p-5"
+            className="p-5"
+            style={darkCardStyle}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...springDefault, delay: 0.18 }}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="app-icon-box">
+            <div className="mb-4 flex items-center gap-3">
+              <div
+                className="app-icon-box"
+                style={{ background: 'rgba(45,90,39,0.25)', color: '#DFF8D8' }}
+              >
                 <Sprout size={18} />
               </div>
               <div className="flex-1">
-                <p className="app-label">Crop Type</p>
-                <p className="section-label">Select one or more crops</p>
+                <p className="app-label" style={{ color: '#FFFFFF' }}>Crop Type</p>
+                <p className="section-label" style={{ color: 'rgba(255,255,255,0.58)' }}>Select one or more crops</p>
               </div>
               {step2Done && (
-                <span className="app-chip" style={{ padding: '8px 12px' }}>
+                <span
+                  className="app-chip"
+                  style={{
+                    padding: '8px 12px',
+                    background: 'rgba(158,216,142,0.12)',
+                    border: '1px solid rgba(158,216,142,0.18)',
+                    color: '#DFF8D8',
+                  }}
+                >
                   {selectedCrops.length} selected
                 </span>
               )}
@@ -167,8 +225,9 @@ export default function FarmSetup({ onComplete }: Props) {
                     key={crop}
                     type="button"
                     onClick={() => toggleCrop(crop)}
-                    className={selected ? 'app-button-primary' : 'app-button-secondary'}
+                    className="app-button-secondary"
                     style={{
+                      ...getToggleStyle({ selected }),
                       padding: '12px 16px',
                       borderRadius: 999,
                       minWidth: 'calc(50% - 6px)',
@@ -183,21 +242,33 @@ export default function FarmSetup({ onComplete }: Props) {
           </motion.div>
 
           <motion.div
-            className="app-card p-5"
+            className="p-5"
+            style={darkCardStyle}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...springDefault, delay: 0.26 }}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="app-icon-box">
+            <div className="mb-4 flex items-center gap-3">
+              <div
+                className="app-icon-box"
+                style={{ background: 'rgba(45,90,39,0.25)', color: '#DFF8D8' }}
+              >
                 <Ruler size={18} />
               </div>
               <div className="flex-1">
-                <p className="app-label">Farm Size</p>
-                <p className="section-label">Enter the total area</p>
+                <p className="app-label" style={{ color: '#FFFFFF' }}>Farm Size</p>
+                <p className="section-label" style={{ color: 'rgba(255,255,255,0.58)' }}>Enter the total area</p>
               </div>
               {step3Done && (
-                <span className="app-chip" style={{ padding: '8px 12px' }}>
+                <span
+                  className="app-chip"
+                  style={{
+                    padding: '8px 12px',
+                    background: 'rgba(158,216,142,0.12)',
+                    border: '1px solid rgba(158,216,142,0.18)',
+                    color: '#DFF8D8',
+                  }}
+                >
                   Set
                 </span>
               )}
@@ -212,15 +283,20 @@ export default function FarmSetup({ onComplete }: Props) {
                 value={farmSize}
                 onChange={e => setFarmSize(e.target.value)}
                 className="app-input"
+                style={darkInputStyle}
               />
-              <div className="flex rounded-xl border-2 p-1" style={{ borderColor: '#2D5A27', background: '#FFFFFF' }}>
+              <div
+                className="flex rounded-xl p-1"
+                style={{ border: '1px solid rgba(108,176,94,0.16)', background: 'rgba(255,255,255,0.04)' }}
+              >
                 {(['acres', 'hectares'] as const).map(u => (
                   <button
                     key={u}
                     type="button"
                     onClick={() => setUnit(u)}
-                    className={unit === u ? 'app-button-primary' : 'app-button-secondary'}
+                    className="app-button-secondary"
                     style={{
+                      ...getToggleStyle({ selected: unit === u }),
                       padding: '12px 14px',
                       borderRadius: 8,
                       fontSize: 14,
@@ -241,10 +317,11 @@ export default function FarmSetup({ onComplete }: Props) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
                 transition={springDefault}
-                className="app-card p-4"
+                className="p-4"
+                style={darkCardStyle}
               >
-                <p className="section-label">Ready To Generate</p>
-                <p className="app-text" style={{ marginTop: 8 }}>
+                <p className="section-label" style={{ color: '#A9DDA0' }}>Ready To Generate</p>
+                <p className="app-text" style={{ marginTop: 8, color: '#FFFFFF' }}>
                   {selectedCrops.join(' • ')} • {farmSize} {unit}
                 </p>
               </motion.div>
@@ -256,6 +333,10 @@ export default function FarmSetup({ onComplete }: Props) {
             onClick={allDone ? onComplete : undefined}
             disabled={!allDone}
             className="app-button-primary app-button-cta"
+            style={{
+              background: allDone ? '#2D5A27' : 'rgba(45,90,39,0.5)',
+              border: '1px solid rgba(158,216,142,0.22)',
+            }}
             whileTap={allDone ? { scale: 0.98 } : {}}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
