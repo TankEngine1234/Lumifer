@@ -72,19 +72,29 @@ export function computeColorIndices(imageData: ImageData, mask?: ImageData): { i
   // Convert mean back to [0, 255] for standard HSV conversion
   const meanHSV = rgbToHsv(meanR * 255, meanG * 255, meanB * 255);
 
-  return {
+  const result = {
     indices: {
       exg: totalExg / pixelCount,
       ngrdi: totalNgrdi / pixelCount,
       vari: totalVari / pixelCount,
     },
     colorData: {
-      meanRGB: { 
-        r: Math.round(meanR * 255), 
-        g: Math.round(meanG * 255), 
-        b: Math.round(meanB * 255) 
+      meanRGB: {
+        r: Math.round(meanR * 255),
+        g: Math.round(meanG * 255),
+        b: Math.round(meanB * 255)
       },
       meanHSV: meanHSV,
     },
   };
+
+  console.log(`[Lumifer] 🌿 Color indices (${pixelCount} leaf pixels):`, {
+    ExG: result.indices.exg.toFixed(4),
+    NGRDI: result.indices.ngrdi.toFixed(4),
+    VARI: result.indices.vari.toFixed(4),
+    meanRGB: result.colorData.meanRGB,
+    meanHSV: { h: meanHSV.h.toFixed(1), s: meanHSV.s.toFixed(3), v: meanHSV.v.toFixed(3) },
+  });
+
+  return result;
 }
