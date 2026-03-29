@@ -6,6 +6,7 @@ import fieldsRouter from './routes/fields.js';
 import tilesRouter from './routes/tiles.js';
 import rgbTilesRouter from './routes/rgb-tiles.js';
 import statsRouter from './routes/stats.js';
+import analyzeRouter from './routes/analyze.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -13,7 +14,8 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({
   origin: ['http://localhost:5173', 'http://localhost:3000'],
 }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 let eeReady = false;
 
@@ -35,6 +37,7 @@ app.use('/api/fields', fieldsRouter);
 app.use('/api/tiles', tilesRouter);
 app.use('/api/rgb-tiles', rgbTilesRouter);
 app.use('/api/stats', statsRouter);
+app.use('/api/analyze-leaf', analyzeRouter);
 
 async function start() {
   try {

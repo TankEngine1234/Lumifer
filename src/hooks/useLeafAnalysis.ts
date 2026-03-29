@@ -27,6 +27,9 @@ export function useLeafAnalysis() {
       });
 
       if (!res.ok) {
+        if (res.status === 413) {
+          throw new Error('Image is too large. Try a smaller or compressed photo.');
+        }
         const errData = await res.json().catch(() => ({}));
         throw new Error((errData as { error?: string }).error ?? `HTTP ${res.status}`);
       }

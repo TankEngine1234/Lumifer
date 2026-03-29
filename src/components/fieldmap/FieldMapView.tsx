@@ -5,6 +5,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { blurFade } from '../../animations/variants';
 import { springDefault } from '../../animations/springs';
 import ZoneCard from './ZoneCard';
+import LeafAnalysisPanel from '../analysis/LeafAnalysisPanel';
 import type { FieldZone, FieldPolygon } from '../../types';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
@@ -19,7 +20,8 @@ interface Props {
   zoom: number;
   zonesLoading?: boolean;
   selectedZone?: boolean;
-  onZoneSelect?: () => void;
+  initialZone?: FieldZone | null;
+  onZoneSelect?: (zone?: FieldZone) => void;
   onScanLeaf?: () => void;
   region?: string;
 }
@@ -48,6 +50,7 @@ export default function FieldMapView({
   zoom,
   zonesLoading = false,
   selectedZone,
+  initialZone = null,
   onZoneSelect,
   onScanLeaf,
   region,
@@ -55,9 +58,12 @@ export default function FieldMapView({
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const targetMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const onZoneSelectRef = useRef(onZoneSelect);
+  const onScanLeafRef = useRef(onScanLeaf);
   const initCenter = useRef(center);
   const initZoom = useRef(zoom);
   const [active, setActive] = useState<FieldZone | null>(null);
+  const [leafPanelOpen, setLeafPanelOpen] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [polygonsVisible, setPolygonsVisible] = useState(true);
   const [geoStats, setGeoStats] = useState({ total: 0, low: 0, med: 0, high: 0 });
@@ -65,6 +71,17 @@ export default function FieldMapView({
   const clearTargetMarkers = useCallback(() => {
     targetMarkersRef.current.forEach(marker => marker.remove());
     targetMarkersRef.current = [];
+  }, []);
+
+  const hasLayer = useCallback((layerId: string) => {
+    const map = mapRef.current;
+    if (!map) return false;
+
+    try {
+      return Boolean(map.getStyle()?.layers?.some(layer => layer.id === layerId));
+    } catch {
+      return false;
+    }
   }, []);
 
   const getFeatureCenter = useCallback((feature: GeoJSON.Feature<GeoJSON.Geometry | null, GeoFieldProperties>) => {
@@ -135,6 +152,15 @@ export default function FieldMapView({
 
   // Unused polygons prop acknowledged (kept for interface compatibility)
   void polygons;
+  void region;
+
+  useEffect(() => {
+    onZoneSelectRef.current = onZoneSelect;
+  }, [onZoneSelect]);
+
+  useEffect(() => {
+    onScanLeafRef.current = onScanLeaf;
+  }, [onScanLeaf]);
 
   // Map initialisation
   useEffect(() => {
@@ -227,12 +253,13 @@ export default function FieldMapView({
     ) => {
       const tempZone = buildZoneFromFeature(feature, lng, lat);
       setActive(tempZone);
-      if (onScanLeaf) {
-        onScanLeaf();
-        return;
-      }
-      onZoneSelect?.();
-      map.flyTo({ center: [tempZone.lng, tempZone.lat], zoom: Math.max(map.getZoom(), 15), duration: 600 });
+      onZoneSelectRef.current?.(tempZone);
+      setLeafPanelOpen(true);
+      map.flyTo({
+        center: [tempZone.lng, tempZone.lat],
+        zoom: Math.min(Math.max(map.getZoom(), 12.8), 13.6),
+        duration: 600,
+      });
     };
 
     const clickHandler = (e: mapboxgl.MapLayerMouseEvent) => {
@@ -246,7 +273,7 @@ export default function FieldMapView({
     const leaveHandler = () => { map.getCanvas().style.cursor = ''; };
 
     const bindHandlers = () => {
-      if (!map.getLayer('gee-fields-hit')) return;
+      if (!hasLayer('gee-fields-hit')) return;
       map.off('click', 'gee-fields-hit', clickHandler);
       map.off('mouseenter', 'gee-fields-hit', enterHandler);
       map.off('mouseleave', 'gee-fields-hit', leaveHandler);
@@ -368,15 +395,19 @@ export default function FieldMapView({
 
     return () => {
       cancelled = true;
-      if (map.getLayer('gee-fields-hit')) {
+      if (hasLayer('gee-fields-hit')) {
         map.off('click', 'gee-fields-hit', clickHandler);
         map.off('mouseenter', 'gee-fields-hit', enterHandler);
         map.off('mouseleave', 'gee-fields-hit', leaveHandler);
       }
       clearTargetMarkers();
-      map.getCanvas().style.cursor = '';
+      try {
+        map.getCanvas().style.cursor = '';
+      } catch {
+        // Map canvas may already be detached during teardown.
+      }
     };
-  }, [buildZoneFromFeature, clearTargetMarkers, getFeatureCenter, mapLoaded, onZoneSelect, onScanLeaf, polygonsVisible]);
+  }, [buildZoneFromFeature, clearTargetMarkers, getFeatureCenter, hasLayer, mapLoaded, polygonsVisible]);
 
   const POLYGON_LAYER_IDS = [
     'gee-fields-fill',
@@ -393,7 +424,7 @@ export default function FieldMapView({
     if (!map) return;
     const vis = next ? 'visible' : 'none';
     POLYGON_LAYER_IDS.forEach(id => {
-      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
+      if (hasLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
     });
     targetMarkersRef.current.forEach(marker => {
       const element = marker.getElement() as HTMLElement;
@@ -402,7 +433,7 @@ export default function FieldMapView({
   };
 
   const alertCount = stats.low;
-  const displayedZone = active ?? (selectedZone && zones.length > 0 ? zones[0] : null);
+  const displayedZone = active ?? initialZone ?? (selectedZone && zones.length > 0 ? zones[0] : null);
 
   return (
     <motion.div
@@ -435,8 +466,11 @@ export default function FieldMapView({
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}
         >
           <div style={{ flex: 1, textAlign: 'center' }}>
-            <p className="section-label mb-1">
-              {region ?? 'Sentinel-2 / NDVI / Imperial Valley CA'}
+            <p
+              className="section-label mb-1"
+              style={{ fontSize: 18, fontWeight: 800, color: '#6B6B6B', letterSpacing: '0.06em' }}
+            >
+              Imperial County, California
             </p>
             <h2 className="text-[24px] font-extrabold leading-tight" style={{ color: '#FFFFFF' }}>Field Overview</h2>
           </div>
@@ -561,10 +595,21 @@ export default function FieldMapView({
 
       {/* Zone detail card - shown when a polygon is clicked */}
       <AnimatePresence>
-        {displayedZone && (
+        {displayedZone && !leafPanelOpen && (
           <ZoneCard
             zone={displayedZone}
-            onScanLeaf={() => onScanLeaf?.()}
+            onScanLeaf={() => setLeafPanelOpen(true)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {leafPanelOpen && displayedZone && (
+          <LeafAnalysisPanel
+            fieldId={displayedZone.id}
+            fieldLabel={displayedZone.label}
+            onClose={() => setLeafPanelOpen(false)}
+            onScanLeaf={onScanLeaf}
           />
         )}
       </AnimatePresence>

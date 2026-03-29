@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import type { DemoPhase, NPKResult, ProcessingResult } from './types';
+import type { DemoPhase, FieldZone, NPKResult, ProcessingResult } from './types';
 import { getNextPhase, getPhaseDelay } from './animations/demoSequence';
 import { useNASAPower } from './hooks/useNASAPower';
 import { useFieldZones } from './hooks/useFieldZones';
@@ -20,6 +20,7 @@ function App() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
   const [npkResult, setNpkResult] = useState<NPKResult | null>(null);
+  const [selectedFieldZone, setSelectedFieldZone] = useState<FieldZone | null>(null);
 
   // 🛡️ FIX: Reference to clear rogue timeouts during manual overrides
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,6 +74,14 @@ function App() {
     setNpkResult(result);
   }, []);
 
+  const handleFieldZoneSelect = useCallback((zone?: FieldZone) => {
+    setSelectedFieldZone(zone ?? null);
+  }, []);
+
+  const handleScanLeaf = useCallback(() => {
+    advanceTo('capture');
+  }, [advanceTo]);
+
   // Hidden escape hatch: triple-tap top-right to skip to results
   const [tapCount, setTapCount] = useState(0);
   useEffect(() => {
@@ -121,7 +130,9 @@ function App() {
             zoom={zoom}
             zonesLoading={zonesStatus === 'loading'}
             region={region}
-            onZoneSelect={() => advanceTo('zone')}
+            initialZone={selectedFieldZone}
+            onZoneSelect={handleFieldZoneSelect}
+            onScanLeaf={handleScanLeaf}
           />
         )}
 
@@ -134,8 +145,10 @@ function App() {
             zoom={zoom}
             zonesLoading={zonesStatus === 'loading'}
             region={region}
+            initialZone={selectedFieldZone}
             selectedZone
-            onScanLeaf={() => advanceTo('capture')}
+            onZoneSelect={handleFieldZoneSelect}
+            onScanLeaf={handleScanLeaf}
           />
         )}
 
